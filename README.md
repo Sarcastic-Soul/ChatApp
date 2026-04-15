@@ -6,7 +6,8 @@ A full-stack real-time chat application built with **React + Vite** and **Expres
 
 ## 🌐 Live Demo
 
-🔗 [https://socket-chat-nine-tau.vercel.app/](https://socket-chat-nine-tau.vercel.app/)
+* 🔗 [https://socket-chat-nine-tau.vercel.app/](https://socket-chat-nine-tau.vercel.app/)
+* ▶️ [Demo Video ](https://youtu.be/9GX83N07K70)
 
 ⚠️ **Important Note:** The backend is deployed on Render's free tier, which may sleep on inactivity. When you open the link, please wait for the server to boot up (it may take up to 10 minutes). A cron job has been made to prevent this, but there is no guarantee. Just watch the video DEMO below if necessary.
 
@@ -17,15 +18,11 @@ A full-stack real-time chat application built with **React + Vite** and **Expres
 
 ---
 
-## 📸 Screenshots
-
-### 💬 Chat
-
+## 📸 DEMO
 ![Chat](./screenshots/chat_ss.png)
 
-### 📹 Video Call
-
-![Video](./screenshots/video-call.png)
+## ▶️ Watch Demo Video on YouTube
+[![Watch Demo](https://img.youtube.com/vi/9GX83N07K70/0.jpg)](https://youtu.be/9GX83N07K70)
 
 ---
 
@@ -223,4 +220,3 @@ bun run dev
 * Use AI-powered reply suggestions
 * Search and revisit past messages
 * Customize UI (theme, layout, profile)
-
