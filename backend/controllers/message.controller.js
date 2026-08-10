@@ -4,6 +4,7 @@ import Message from "../models/message.model.js";
 import User from "../models/user.model.js";
 import { getReceiverSocketId, io } from "../socket/socket.js";
 import { encryptText, decryptText } from "../utils/encryption.js";
+import { cleanProfanity } from "../utils/profanityFilter.js";
 
 export const sendMessage = async (req, res) => {
     try {
@@ -44,10 +45,12 @@ export const sendMessage = async (req, res) => {
             });
         }
 
+        const cleanedText = message ? cleanProfanity(message) : "";
+
         const newMessage = new Message({
             senderId,
             receiverId: conversation._id,
-            message: message ? encryptText(message) : "",
+            message: cleanedText ? encryptText(cleanedText) : "",
             mediaUrl: mediaUrl || null,
             mediaType: mediaType || "text",
             replyTo: replyTo || null,
@@ -339,7 +342,8 @@ export const editMessage = async (req, res) => {
             return res.status(403).json({ error: "Unauthorized" });
         }
 
-        message.message = encryptText(newText);
+        const cleanedText = newText ? cleanProfanity(newText) : "";
+        message.message = encryptText(cleanedText);
         message.isEdited = true;
         await message.save();
 

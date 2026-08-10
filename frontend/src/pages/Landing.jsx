@@ -12,6 +12,7 @@ import {
     Center,
     Badge,
     Loader,
+    Stack,
 } from "@mantine/core";
 import { Link } from "react-router-dom";
 import {
@@ -21,8 +22,11 @@ import {
     FiUsers,
     FiDroplet,
     FiZap,
+    FiGithub,
+    FiFilter,
 } from "react-icons/fi";
 import ThemeToggle from "../components/ThemeToggle";
+import useLogin from "../hooks/useLogin";
 
 const features = [
     {
@@ -45,9 +49,15 @@ const features = [
     },
     {
         icon: FiShield,
-        title: "Secure by Design",
+        title: "AES-256 Encrypted",
         description:
             "Your messages are encrypted at rest, ensuring your private conversations stay private.",
+    },
+    {
+        icon: FiFilter,
+        title: "Profanity Shield",
+        description:
+            "Automated soft-masking filter censors offensive language before database persistence.",
     },
     {
         icon: FiDroplet,
@@ -65,6 +75,11 @@ const features = [
 
 const Landing = () => {
     const [serverStatus, setServerStatus] = useState("checking");
+    const { loading, login } = useLogin();
+
+    const handleDemoLogin = async () => {
+        await login("alice", "password123");
+    };
 
     useEffect(() => {
         const checkStatus = async () => {
@@ -115,6 +130,17 @@ const Landing = () => {
                             Server Offline
                         </Badge>
                     )}
+                    <Button
+                        component="a"
+                        href="https://github.com/Sarcastic-Soul/ChatApp"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="subtle"
+                        size="sm"
+                        leftSection={<FiGithub size={16} />}
+                    >
+                        GitHub
+                    </Button>
                     <ThemeToggle />
                 </Group>
             </Box>
@@ -170,25 +196,38 @@ const Landing = () => {
                         and high-quality video calls.
                     </Text>
 
-                    <Group justify="center" gap="md">
+                    <Stack align="center" gap="sm">
+                        <Group justify="center" gap="md">
+                            <Button
+                                component={Link}
+                                to="/signup"
+                                size="lg"
+                                radius="xl"
+                            >
+                                Get Started for Free
+                            </Button>
+                            <Button
+                                component={Link}
+                                to="/login"
+                                size="lg"
+                                radius="xl"
+                                variant="default"
+                            >
+                                Login to your Account
+                            </Button>
+                        </Group>
+
                         <Button
-                            component={Link}
-                            to="/signup"
                             size="lg"
                             radius="xl"
+                            variant="outline"
+                            color="blue"
+                            loading={loading}
+                            onClick={handleDemoLogin}
                         >
-                            Get Started for Free
+                            Try Demo Account
                         </Button>
-                        <Button
-                            component={Link}
-                            to="/login"
-                            size="lg"
-                            radius="xl"
-                            variant="default"
-                        >
-                            Login to your Account
-                        </Button>
-                    </Group>
+                    </Stack>
                 </Container>
             </Box>
 
@@ -254,10 +293,23 @@ const Landing = () => {
                             </ThemeIcon>
                             <Text fw={700}>ChatApp</Text>
                         </Group>
-                        <Text c="dimmed" size="sm">
-                            © {new Date().getFullYear()} ChatApp. All rights
-                            reserved.
-                        </Text>
+                        <Group gap="md">
+                            <Button
+                                component="a"
+                                href="https://github.com/Sarcastic-Soul/ChatApp"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                variant="subtle"
+                                size="xs"
+                                leftSection={<FiGithub size={14} />}
+                            >
+                                Source Code
+                            </Button>
+                            <Text c="dimmed" size="sm">
+                                © {new Date().getFullYear()} ChatApp. All rights
+                                reserved.
+                            </Text>
+                        </Group>
                     </Group>
                 </Container>
             </Box>

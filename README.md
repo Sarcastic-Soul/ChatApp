@@ -1,222 +1,132 @@
-# React + Express Socket.io Chat App 🚀💬
+# 💬 ChatApp — Real-Time Encrypted Messaging & WebRTC Platform
 
-A full-stack real-time chat application built with **React + Vite** and **Express.js**, powered by **Socket.io** for instant communication and **WebRTC** for peer-to-peer calls.
+A high-performance, full-stack real-time chat application built with **React**, **Express.js**, **Socket.io**, and **WebRTC**. Features AES-256 message encryption, automated profanity filtering, IndexedDB offline caching, and Google Gemini AI smart replies.
 
----
-
-## 🌐 Live Demo
-
-* 🔗 [https://socket-chat-nine-tau.vercel.app/](https://socket-chat-nine-tau.vercel.app/)
-* ▶️ [Demo Video ](https://youtu.be/9GX83N07K70)
-
-⚠️ **Important Note:** The backend is deployed on Render's free tier, which may sleep on inactivity. When you open the link, please wait for the server to boot up (it may take up to 10 minutes). A cron job has been made to prevent this, but there is no guarantee. Just watch the video DEMO below if necessary.
-
-🧪 Test Credentials:
-
-* Username: `alice`
-* Password: `password123`
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-blue?style=for-the-badge&logo=vercel)](https://socket-chat-nine-tau.vercel.app/)
+[![Demo Video](https://img.shields.io/badge/YouTube-Demo_Video-red?style=for-the-badge&logo=youtube)](https://youtu.be/9GX83N07K70)
+[![Repository](https://img.shields.io/badge/GitHub-Repository-black?style=for-the-badge&logo=github)](https://github.com/Sarcastic-Soul/ChatApp)
 
 ---
 
-## 📸 DEMO
-![Chat](./screenshots/chat_ss.png)
+## 🌐 Live Demo & Credentials
 
-## ▶️ Watch Demo Video on YouTube
-[![Watch Demo](https://img.youtube.com/vi/9GX83N07K70/0.jpg)](https://youtu.be/9GX83N07K70)
+* **Web Application**: [https://socket-chat-nine-tau.vercel.app/](https://socket-chat-nine-tau.vercel.app/)
+* **YouTube Video Tour**: [Watch 2-Minute Demo](https://youtu.be/9GX83N07K70)
 
----
+> **Test Credentials**:  
+> **Username**: `alice` | **Password**: `password123`
 
-## 🏗️ Architecture
-
-* **Frontend:** React + Vite (UI + state management)
-* **Backend:** Express.js + Socket.io (API + real-time events)
-* **Database:** MongoDB (encrypted message storage)
-* **Media Storage:** Cloudinary
-* **Realtime:** WebSockets (Socket.io)
-* **Calling:** WebRTC (with Socket.io signaling)
-* **Caching:** IndexedDB (stale-while-revalidate)
+*Note: The backend is hosted on Render's free tier and may take a moment to wake up if inactive.*
 
 ---
 
-## ⚡ Engineering Highlights
+## ⚡ Key Engineering Highlights
 
-* Stale-while-revalidate caching with IndexedDB for instant chat loads
-* Real-time message lifecycle (sent → delivered → read)
-* WebRTC-based peer-to-peer video & voice calls
-* AES-256 encryption for messages at rest
-* Rate limiting & security via Helmet + express-rate-limit
-
----
-
-## ✨ Features
-
-### 🔐 Authentication & Security
-
-* JWT-based login/signup
-* Password hashing with bcrypt
-* AES-256 encrypted message storage
-* Rate limiting & abuse protection
-
-### 💬 Messaging System
-
-* Real-time 1-on-1 and group chats
-* Message reactions and emojis
-* Reply to messages (quoted replies)
-* Edit messages with `(edited)` indicator
-* Delete for everyone
-* Message forwarding
-
-### 📊 Message Experience
-
-* Read receipts (✔️ sent / ✔️✔️ read)
-* Typing indicators
-* Unread message tracking
-* In-chat search functionality
-
-### 📁 Media & Files
-
-* Drag & drop image/video uploads
-* Upload progress indicators
-* Cloudinary media storage
-
-### 📞 Calling Features
-
-* WebRTC 1-on-1 video calls
-* Audio-only voice calls
-* Call logs (missed/completed)
-
-### 🤖 AI Features
-
-* Magic Reply (Google Gemini API)
-* Tone-based smart suggestions
-
-### 👥 Social & Groups
-
-* Create/manage groups
-* Admin roles & permissions
-* System messages (join/leave updates)
-
-### 👤 User Profiles
-
-* Custom avatars
-* Public/Private profile toggle
-
-### ⚡ Performance & UX
-
-* Offline-first chat loading (IndexedDB caching)
-* Smooth mobile + desktop experience
-* Resizable sidebar layout
-* Dark/Light theme + custom colors
-
-### 🧠 State & UI
-
-* Zustand for global state
-* Mantine UI for modern design
+* **🔒 AES-256 Encryption at Rest**: Messages are encrypted using Node `crypto` CBC ciphering before database persistence and decrypted dynamically upon authorized retrieval.
+* **🛡️ Soft-Masking Profanity Filter**: Automated backend profanity shield censors inappropriate language into masked asterisks (`****`) before storage.
+* **⚡ Offline-First Caching (IndexedDB)**: Stale-while-revalidate data pipeline powered by `idb` for instant conversation loading.
+* **📞 Peer-to-Peer WebRTC Calling**: Direct voice & video calls over native `RTCPeerConnection` with Socket.io signaling.
+* **🤖 AI Magic Reply (Google Gemini)**: Intelligent, tone-aware quick reply generation powered by `gemini-2.5-flash`.
+* **💬 Rich Messaging Suite**: Support for media attachments (Cloudinary), quoted replies, message editing, deletion for everyone, reactions, read receipts, and typing indicators.
 
 ---
 
-## 📂 Project Structure
+## 📸 Preview
 
-```text
-mern-chat-app/
-├── backend/
-│   ├── controllers/
-│   ├── db/
-│   ├── middleware/
-│   ├── models/
-│   ├── routes/
-│   ├── socket/
-│   ├── utils/
-│   └── server.js
-└── frontend/
-    ├── public/
-    └── src/
-        ├── components/
-        ├── context/
-        ├── hooks/
-        ├── pages/
-        ├── utils/
-        ├── zustand/
-        ├── App.jsx
-        └── main.jsx
-```
+![ChatApp Demo](./screenshots/chat_ss.png)
 
 ---
 
 ## 🛠️ Tech Stack
 
-**Frontend:**
-React, Mantine UI, Zustand, Socket.io-client, idb, react-router-dom
-
-**Backend:**
-Express.js, Socket.io, MongoDB, JWT, bcryptjs, Cloudinary, Gemini API
+* **Frontend**: React 18, Vite, Mantine UI (v7), Zustand, Tailwind CSS, Socket.io-client, IndexedDB (`idb`).
+* **Backend**: Express.js, Socket.io, MongoDB & Mongoose, JWT (HttpOnly cookies), `leo-profanity`, Cloudinary SDK, `@google/generative-ai`.
+* **Tooling & Package Manager**: `pnpm` v11+, ES Modules.
 
 ---
 
-## 🚀 Getting Started
+## 📂 System Architecture
 
-### Prerequisites
-
-* Bun installed
-* MongoDB database
-
-### Installation
-
-```bash
-cd frontend
-bun install
-
-cd ../backend
-bun install
+```text
+mern-chat-app/
+├── backend/
+│   ├── controllers/      # Request logic (auth, message, group, user, cloudinary)
+│   ├── models/           # Mongoose schemas (User, Message, Conversation)
+│   ├── routes/           # REST API routes
+│   ├── socket/           # Real-time WebSocket handlers & WebRTC signaling
+│   ├── utils/            # Encryption, profanity filter, JWT helper
+│   └── server.js         # Entry point & Express server setup
+└── frontend/
+    └── src/
+        ├── components/   # UI components (messages, sidebar, call modal)
+        ├── context/      # React contexts (Auth, Socket, Call)
+        ├── hooks/        # Custom data & mutation hooks
+        ├── pages/        # Route views (Landing, Login, Home, Profile, etc.)
+        ├── utils/        # IndexedDB cache engine & formatters
+        └── zustand/      # Global state stores
 ```
 
-### Environment Variables (`backend/.env`)
+---
+
+## 🚀 Local Development Setup
+
+### Prerequisites
+* **Node.js** (v18+)
+* **pnpm** installed (`npm i -g pnpm`)
+* **MongoDB** connection URI
+
+### 1. Clone & Install Dependencies
+
+```bash
+git clone https://github.com/Sarcastic-Soul/ChatApp.git
+cd ChatApp
+
+# Install backend dependencies
+cd backend
+pnpm install
+
+# Install frontend dependencies
+cd ../frontend
+pnpm install
+```
+
+### 2. Configure Environment Variables
+
+Create `.env` in `backend/`:
 
 ```env
 PORT=5000
-MONGO_DB_URI=
-JWT_SECRET=
+MONGO_DB_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret_key
+ENCRYPTION_KEY=your_32_byte_aes_key
 NODE_ENV=development
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
-ENCRYPTION_KEY=
-GEMINI_API_KEY=
+CLOUDINARY_CLOUD_NAME=your_cloudinary_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
----
-
-## 🌱 Seed Database
+### 3. Seed Database (Optional)
 
 ```bash
 cd backend
-bun run seed
+pnpm run seed
 ```
 
----
-
-## ▶️ Run Locally
+### 4. Run the Application
 
 ```bash
+# Start backend server (Terminal 1)
 cd backend
-bun run dev
-```
+pnpm run dev
 
-```bash
+# Start frontend client (Terminal 2)
 cd frontend
-bun run dev
+pnpm run dev
 ```
 
 ---
 
-## 🎯 Usage
+## 📜 License
 
-* Create an account or log in
-* Start real-time conversations with users
-* Send text, emojis, media, and voice messages
-* Track delivery and read status
-* Make video or voice calls
-* Manage groups and participants
-* Use AI-powered reply suggestions
-* Search and revisit past messages
-* Customize UI (theme, layout, profile)
+Distributed under the MIT License.

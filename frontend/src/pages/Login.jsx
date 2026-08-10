@@ -24,6 +24,12 @@ const Login = () => {
         await login(username, password);
     };
 
+    const handleDemoLogin = async () => {
+        setUsername("alice");
+        setPassword("password123");
+        await login("alice", "password123");
+    };
+
     return (
         <Center mih="100vh" px="md">
             <Paper withBorder shadow="md" p={30} radius="md" w="100%" maw={400}>
@@ -72,6 +78,17 @@ const Login = () => {
                             mt="sm"
                         >
                             Login
+                        </Button>
+
+                        <Button
+                            type="button"
+                            variant="light"
+                            color="blue"
+                            loading={loading}
+                            fullWidth
+                            onClick={handleDemoLogin}
+                        >
+                            Try Demo Account
                         </Button>
                     </Stack>
                 </form>
