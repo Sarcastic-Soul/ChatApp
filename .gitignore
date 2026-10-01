@@ -46,3 +46,7 @@ tmp/
 
 # Test coverage reports
 coverage/
+
+# Playwright reports
+playwright-report/
+test-results/

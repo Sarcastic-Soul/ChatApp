@@ -121,6 +121,7 @@ ChatApp/
 │   ├── socket/           # Socket.io server, rooms and WebRTC signaling
 │   ├── utils/            # Encryption, profanity filter, JWT and Cloudinary helpers
 │   ├── validation/       # zod schemas for requests and socket events
+│   ├── scripts/          # e2e-server.js: the server on an in-memory MongoDB
 │   ├── tests/            # Vitest API and socket tests
 │   ├── app.js            # Express app with every route attached
 │   ├── seed.js           # Demo data
@@ -128,6 +129,7 @@ ChatApp/
 ├── docs/
 │   └── architecture.d2   # Architecture diagram source
 └── frontend/
+    ├── e2e/              # Playwright end-to-end tests
     ├── src/
     │   ├── components/   # Chat, sidebar, call and modal components
     │   ├── context/      # Auth, socket and call state
@@ -181,21 +183,24 @@ In development, Vite forwards `/api` to `VITE_API_URL` (default `http://localhos
 | `frontend` | `pnpm run dev` | Start the Vite dev server |
 | `frontend` | `pnpm run build` | Build for production into `dist/` |
 | `frontend` | `pnpm run lint` | Run ESLint |
-| `frontend` | `pnpm test` | Run the store, cache and formatter tests |
+| `frontend` | `pnpm test` | Run the component, store, cache and formatter tests |
+| `frontend` | `pnpm run test:e2e` | Run the Playwright end-to-end tests (starts its own backend and in-memory MongoDB) |
 
 ## Testing
 
 ```bash
 cd backend && pnpm test
 cd frontend && pnpm test
+cd frontend && pnpm exec playwright install chromium && pnpm run test:e2e
 ```
 
 The backend tests need no setup and never touch a real database. They start an in-memory MongoDB with `mongodb-memory-server` (the binary, about 120 MB, downloads on the first run), give each test file its own database, and use fake secrets from `backend/vitest.config.js`.
 
 - **Backend (110 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response. Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status and that bad payloads are dropped.
-- **Frontend (30 tests):** the Zustand conversation store, the IndexedDB message cache (on `fake-indexeddb`) and the time formatters.
+- **Frontend (41 tests):** the login and sign-up pages with Testing Library on jsdom (form submit, server errors, client checks, the saved session check), the Zustand conversation store, the IndexedDB message cache (on `fake-indexeddb`) and the time formatters.
+- **End to end (Playwright):** starts the real backend on an in-memory MongoDB and the Vite app, then two browsers sign up, start a chat and swap messages live over the socket.
 
-GitHub Actions runs both suites, ESLint and the production build on every push to `main` and on pull requests (`.github/workflows/ci.yml`).
+GitHub Actions runs all three suites, ESLint and the production build on every push to `main` and on pull requests (`.github/workflows/ci.yml`).
 
 ## Environment variables
 
@@ -264,7 +269,7 @@ Everything deploys from `main`.
 
 - **Frontend (Vercel):** root directory `frontend`. `vercel.json` forwards `/api/*` to the Render backend and sends every other path to `index.html`. Set `VITE_API_URL` to the Render URL.
 - **Backend (Render):** root directory `backend`, Node 22, build command `corepack enable && pnpm install --frozen-lockfile`, start command `pnpm start`, Render auto-deploy off. Set the required variables from the table above.
-- **CI and backend deploys (GitHub Actions):** `.github/workflows/ci.yml` runs on every push. When the backend tests pass on `main` and the push changed something in `backend/`, it calls the Render deploy hook, stored in the `RENDER_DEPLOY_HOOK_URL` repository secret. Running the workflow by hand from the Actions tab always deploys.
+- **CI and backend deploys (GitHub Actions):** `.github/workflows/ci.yml` runs on every push. When the backend and end-to-end tests pass on `main` and the push changed something in `backend/`, it calls the Render deploy hook, stored in the `RENDER_DEPLOY_HOOK_URL` repository secret. Running the workflow by hand from the Actions tab always deploys.
 - **Keep-alive (GitHub Actions):** `.github/workflows/keep-alive.yml` calls `/healthz` every 10 minutes so the free Render instance doesn't fall asleep. GitHub may start scheduled runs a few minutes late, and it turns scheduled workflows off after 60 days without commits; turn it back on from the Actions tab. It can also be run by hand from there.
 
 ## License

@@ -95,12 +95,67 @@ jobs:
 
       - run: pnpm build
 
+  e2e:
+    name: End-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        run: npm install -g pnpm@${{ env.PNPM_VERSION }}
+
+      - name: Find the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-e2e-${{ runner.os }}-${{ hashFiles('backend/pnpm-lock.yaml', 'frontend/pnpm-lock.yaml') }}
+          restore-keys: pnpm-e2e-${{ runner.os }}-
+
+      - name: Cache the MongoDB binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-${{ runner.os }}-${{ hashFiles('backend/pnpm-lock.yaml') }}
+          restore-keys: mongodb-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          pnpm -C backend install --frozen-lockfile
+          pnpm -C frontend install --frozen-lockfile
+
+      - name: Install Chromium for Playwright
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright
+        working-directory: frontend
+        run: pnpm test:e2e
+
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
+
   # Render redeploys through its deploy hook, only after the backend tests
   # pass and only when something under backend/ changed. The hook URL is a
   # secret: anyone who has it can trigger a deploy.
   deploy-backend:
     name: Deploy backend to Render
-    needs: backend
+    needs: [backend, e2e]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5

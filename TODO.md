@@ -6,7 +6,7 @@ otherwise.
 
 ## Next up
 
-- [ ] **Tests and CI**
+- [x] **Tests and CI**
   - [x] Backend API tests with Vitest, supertest and mongodb-memory-server:
         auth, messages, groups, users, validation, rate limiting, encryption
   - [x] Socket tests: token auth, rooms, typing relay, bad payloads
@@ -14,11 +14,9 @@ otherwise.
         time formatters
   - [x] GitHub Actions workflow running lint, tests and build on every push
   - [x] Deploy the backend from CI through the Render deploy hook, only
-        after the backend tests pass
-  - [ ] Component tests for the login, sign-up and chat screens
-        (Testing Library, needs a jsdom setup for Mantine)
-  - [ ] One end-to-end Playwright run: log in, send a message, see it arrive
-        in a second browser
+        after the backend and end-to-end tests pass
+  - [x] Component tests for the login and sign-up pages (Testing Library)
+  - [x] End-to-end Playwright run: two browsers sign up and chat live
 - [ ] **Docker setup for local work**
   - [ ] Dockerfile for the backend
   - [ ] docker-compose with backend, frontend and MongoDB, so the app runs
