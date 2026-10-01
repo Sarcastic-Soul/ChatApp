@@ -121,7 +121,7 @@ export const updateUserProfilePic = async (req, res) => {
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { profilePic: profilePic },
-            { new: true },
+            { returnDocument: "after" },
         ).select("-password");
 
         if (!updatedUser) {
@@ -146,7 +146,7 @@ export const updatePrivacy = async (req, res) => {
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { isPublic },
-            { new: true },
+            { returnDocument: "after" },
         ).select("-password");
 
         if (!updatedUser) {
