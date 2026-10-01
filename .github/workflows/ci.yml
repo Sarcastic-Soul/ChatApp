@@ -104,24 +104,30 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      # A manual run always deploys. So does a push whose previous commit
-      # is unknown (a force push or the first push of the branch).
+      # Compare with the last successful run, not the previous commit: a
+      # newer push cancels an older run, and that run's backend changes
+      # still need deploying. A manual run always deploys.
       - name: Check for backend changes
         id: changes
         env:
           EVENT: ${{ github.event_name }}
-          BEFORE: ${{ github.event.before }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "$EVENT" = "workflow_dispatch" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+          LAST=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main \
+            --status success --limit 1 --json headSha --jq '.[0].headSha // empty')
+          if [ "$EVENT" = "workflow_dispatch" ] || [ -z "$LAST" ] || ! git cat-file -e "$LAST^{commit}" 2>/dev/null; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
-          elif git diff --quiet "$BEFORE" HEAD -- backend/; then
+          elif git diff --quiet "$LAST" HEAD -- backend/; then
             echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "No backend changes, skipping the deploy."
+            echo "No backend changes since $LAST, skipping the deploy."
           else
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           fi
