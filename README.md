@@ -4,6 +4,7 @@ A full-stack real-time chat app with group chats, voice notes, and peer-to-peer 
 
 [![Live demo](https://img.shields.io/badge/Live_demo-socket--chat-111?style=flat-square&logo=vercel)](https://socket-chat-nine-tau.vercel.app/)
 [![Video tour](https://img.shields.io/badge/Video_tour-YouTube-c4302b?style=flat-square&logo=youtube)](https://youtu.be/9GX83N07K70)
+[![CI](https://img.shields.io/github/actions/workflow/status/Sarcastic-Soul/ChatApp/ci.yml?style=flat-square&label=tests)](https://github.com/Sarcastic-Soul/ChatApp/actions/workflows/ci.yml)
 [![Keep backend awake](https://img.shields.io/github/actions/workflow/status/Sarcastic-Soul/ChatApp/keep-alive.yml?style=flat-square&label=backend%20ping)](https://github.com/Sarcastic-Soul/ChatApp/actions/workflows/keep-alive.yml)
 ![React 19](https://img.shields.io/badge/React-19-222?style=flat-square&logo=react)
 ![Node 22](https://img.shields.io/badge/Node-22-222?style=flat-square&logo=nodedotjs)
@@ -30,6 +31,7 @@ The backend runs on Render's free tier. A GitHub Actions job pings it every 10 m
 - [Tech stack](#tech-stack)
 - [Project structure](#project-structure)
 - [Running locally](#running-locally)
+- [Testing](#testing)
 - [Environment variables](#environment-variables)
 - [API reference](#api-reference)
 - [Deployment](#deployment)
@@ -100,13 +102,14 @@ d2 docs/architecture.d2 docs/architecture.svg
 | Backend | Node.js 22, Express 5, Socket.io 4, Mongoose 9, zod 4, JWT, bcrypt, helmet, `express-rate-limit`, `leo-profanity` |
 | Services | MongoDB Atlas, Cloudinary, Groq, Google STUN |
 | Hosting | Vercel (frontend and `/api` proxy), Render (API and sockets), GitHub Actions (keep-alive ping) |
-| Tooling | pnpm, ESLint 10 (flat config), ES modules, D2 |
+| Tooling | pnpm, Vitest, supertest, mongodb-memory-server, ESLint 10 (flat config), GitHub Actions CI, D2 |
 
 ## Project structure
 
 ```text
 ChatApp/
 ├── .github/workflows/
+│   ├── ci.yml            # Lint, tests and build on every push
 │   └── keep-alive.yml    # Pings the backend every 10 minutes
 ├── backend/
 │   ├── config/           # Allowed CORS origins
@@ -118,8 +121,10 @@ ChatApp/
 │   ├── socket/           # Socket.io server, rooms and WebRTC signaling
 │   ├── utils/            # Encryption, profanity filter, JWT and Cloudinary helpers
 │   ├── validation/       # zod schemas for requests and socket events
+│   ├── tests/            # Vitest API and socket tests
+│   ├── app.js            # Express app with every route attached
 │   ├── seed.js           # Demo data
-│   └── server.js         # Entry point
+│   └── server.js         # Entry point, starts the server
 ├── docs/
 │   └── architecture.d2   # Architecture diagram source
 └── frontend/
@@ -171,9 +176,26 @@ In development, Vite forwards `/api` to `VITE_API_URL` (default `http://localhos
 | `backend` | `pnpm run dev` | Start the server and restart on file changes (`node --watch`) |
 | `backend` | `pnpm start` | Start the server |
 | `backend` | `pnpm run seed` | Replace the database contents with demo data |
+| `backend` | `pnpm test` | Run the API and socket tests |
+| `backend` | `pnpm run test:coverage` | Run the tests with a coverage report |
 | `frontend` | `pnpm run dev` | Start the Vite dev server |
 | `frontend` | `pnpm run build` | Build for production into `dist/` |
 | `frontend` | `pnpm run lint` | Run ESLint |
+| `frontend` | `pnpm test` | Run the store, cache and formatter tests |
+
+## Testing
+
+```bash
+cd backend && pnpm test
+cd frontend && pnpm test
+```
+
+The backend tests need no setup and never touch a real database. They start an in-memory MongoDB with `mongodb-memory-server` (the binary, about 120 MB, downloads on the first run), give each test file its own database, and use fake secrets from `backend/vitest.config.js`.
+
+- **Backend (110 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response. Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status and that bad payloads are dropped.
+- **Frontend (30 tests):** the Zustand conversation store, the IndexedDB message cache (on `fake-indexeddb`) and the time formatters.
+
+GitHub Actions runs both suites, ESLint and the production build on every push to `main` and on pull requests (`.github/workflows/ci.yml`).
 
 ## Environment variables
 
@@ -242,6 +264,7 @@ Everything deploys from `main`.
 
 - **Frontend (Vercel):** root directory `frontend`. `vercel.json` forwards `/api/*` to the Render backend and sends every other path to `index.html`. Set `VITE_API_URL` to the Render URL.
 - **Backend (Render):** root directory `backend`, Node 22, build command `corepack enable && pnpm install --frozen-lockfile`, start command `pnpm start`, auto-deploy on commit. Set the required variables from the table above.
+- **CI (GitHub Actions):** `.github/workflows/ci.yml` runs on every push. To deploy only commits that pass, set Render's auto-deploy to "After CI checks pass".
 - **Keep-alive (GitHub Actions):** `.github/workflows/keep-alive.yml` calls `/healthz` every 10 minutes so the free Render instance doesn't fall asleep. GitHub may start scheduled runs a few minutes late, and it turns scheduled workflows off after 60 days without commits; turn it back on from the Actions tab. It can also be run by hand from there.
 
 ## License
