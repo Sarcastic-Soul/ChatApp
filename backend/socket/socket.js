@@ -2,17 +2,15 @@ import { Server } from "socket.io";
 import http from "http";
 import express from "express";
 import Message from "../models/message.model.js";
+import { allowedOrigins } from "../config/allowedOrigins.js";
 
 const app = express();
 
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: [
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "https://socket-chat-nine-tau.vercel.app",
-        ],
+        origin: allowedOrigins,
+        credentials: true,
         methods: ["GET", "POST"],
     },
 });

@@ -1,6 +1,6 @@
+import "dotenv/config";
 import path from "path";
 import express from "express";
-import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
@@ -14,18 +14,10 @@ import cloudinaryRoutes from "./routes/cloudinary.routes.js";
 
 import connectToMongoDB from "./db/connectToMongoDB.js";
 import { app, server } from "./socket/socket.js";
-
-dotenv.config();
+import { allowedOrigins } from "./config/allowedOrigins.js";
 
 const __dirname = path.resolve();
 const PORT = process.env.PORT || 5000;
-
-// ✅ Allowed origins
-const allowedOrigins = [
-    "http://localhost:3000",
-    "https://socket-chat-nine-tau.vercel.app",
-    "https://socket-chat-w578.onrender.com",
-];
 
 // ✅ Clean CORS setup
 app.use(
