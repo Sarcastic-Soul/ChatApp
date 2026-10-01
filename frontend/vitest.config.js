@@ -2,9 +2,9 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
     test: {
-        environment: "node",
+        environment: "jsdom",
         include: ["src/**/*.test.{js,jsx}"],
-        // Gives the IndexedDB cache a working database outside the browser
-        setupFiles: ["fake-indexeddb/auto"],
+        // jsdom for components, fake-indexeddb for the message cache
+        setupFiles: ["./src/test/setup.js"],
     },
 });
