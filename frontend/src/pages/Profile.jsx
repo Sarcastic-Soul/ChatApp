@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useAuthContext } from "../context/AuthContext";
 import useGetUserDetails from "../hooks/useGetUserDetails";
 import { notifications } from "@mantine/notifications";

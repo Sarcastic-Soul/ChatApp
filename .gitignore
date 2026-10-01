@@ -40,3 +40,6 @@ Thumbs.db
 # Express.js uploads or temp files (if any)
 uploads/
 tmp/
+
+# Playwright MCP output
+.playwright-mcp/

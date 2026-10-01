@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import { CallContextProvider } from "./context/CallContext.jsx";
 import "./index.css";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter } from "react-router";
 import { AuthContextProvider } from "./context/AuthContext.jsx";
 import { SocketContextProvider } from "./context/SocketContext.jsx";
 import "@mantine/core/styles.css";

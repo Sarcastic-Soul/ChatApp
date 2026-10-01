@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { useAuthContext } from "../../context/AuthContext";
 import { Avatar, ActionIcon } from "@mantine/core";
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import useConversation from "../../zustand/useConversation";
 import MessageInput from "./MessageInput";
 import Messages from "./Messages";

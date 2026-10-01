@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router";
 import { useAuthContext } from "./context/AuthContext";
 import { Box, Center, Loader } from "@mantine/core";
 
