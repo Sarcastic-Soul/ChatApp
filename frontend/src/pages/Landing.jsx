@@ -16,7 +16,7 @@ const features = [
     ["Voice and video calls", "Direct WebRTC calls between two browsers. The socket only carries the handshake."],
     ["Groups", "Make a group, add or remove people, hand out admin rights."],
     ["Encrypted at rest", "Each message is encrypted with AES-256 before MongoDB stores it."],
-    ["Magic reply", "Gemini drafts a reply from the recent chat, in the tone you pick."],
+    ["Magic reply", "An AI model on Groq drafts a reply from the recent chat, in the tone you pick."],
     ["Opens from cache", "Chats load from IndexedDB first, then refresh from the server."],
     ["Profanity filter", "Offensive words are masked on the server before the message is saved."],
 ];

@@ -1,6 +1,6 @@
 # 💬 ChatApp — Real-Time Encrypted Messaging & WebRTC Platform
 
-A high-performance, full-stack real-time chat application built with **React**, **Express.js**, **Socket.io**, and **WebRTC**. Features AES-256 message encryption, automated profanity filtering, IndexedDB offline caching, and Google Gemini AI smart replies.
+A high-performance, full-stack real-time chat application built with **React**, **Express.js**, **Socket.io**, and **WebRTC**. Features AES-256 message encryption, automated profanity filtering, IndexedDB offline caching, and AI smart replies through Groq.
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Vercel-blue?style=for-the-badge&logo=vercel)](https://socket-chat-nine-tau.vercel.app/)
 [![Demo Video](https://img.shields.io/badge/YouTube-Demo_Video-red?style=for-the-badge&logo=youtube)](https://youtu.be/9GX83N07K70)
@@ -26,7 +26,7 @@ A high-performance, full-stack real-time chat application built with **React**, 
 * **🛡️ Soft-Masking Profanity Filter**: Automated backend profanity shield censors inappropriate language into masked asterisks (`****`) before storage.
 * **⚡ Offline-First Caching (IndexedDB)**: Stale-while-revalidate data pipeline powered by `idb` for instant conversation loading.
 * **📞 Peer-to-Peer WebRTC Calling**: Direct voice & video calls over native `RTCPeerConnection` with Socket.io signaling.
-* **🤖 AI Magic Reply (Google Gemini)**: Tone-aware reply drafts from the recent chat, using the `@google/genai` SDK (model set by `GEMINI_MODEL`, default `gemini-2.5-flash`).
+* **🤖 AI Magic Reply (Groq)**: Tone-aware reply drafts from the recent chat, using Groq's OpenAI-compatible API (model `openai/gpt-oss-120b` by default, set by `GROQ_MODEL`). One draft uses a few hundred tokens, well under the free tier's 8K tokens a minute.
 * **💬 Rich Messaging Suite**: Support for media attachments (Cloudinary), quoted replies, message editing, deletion for everyone, reactions, read receipts, and typing indicators.
 * **🎨 Themes**: Light, dark or system mode, with five accent colors to pick from.
 
@@ -41,7 +41,7 @@ A high-performance, full-stack real-time chat application built with **React**, 
 ## 🛠️ Tech Stack
 
 * **Frontend**: React 19, Vite 8, Mantine 9, React Router 7, Zustand 5, Motion, Phosphor Icons, Socket.io-client, IndexedDB (`idb`).
-* **Backend**: Node.js 22, Express 5, Socket.io, MongoDB & Mongoose 9, JWT (HttpOnly cookies), `leo-profanity`, Cloudinary SDK, `@google/genai`.
+* **Backend**: Node.js 22, Express 5, Socket.io, MongoDB & Mongoose 9, JWT (HttpOnly cookies), `leo-profanity`, Cloudinary SDK, Groq API.
 * **Tooling**: `pnpm`, ESLint 10 (flat config), ES Modules.
 * **Hosting**: Frontend on Vercel, which also forwards `/api` requests to the backend on Render. The socket connects to Render directly with a short-lived token.
 
@@ -105,9 +105,9 @@ NODE_ENV=development
 CLOUDINARY_CLOUD_NAME=your_cloudinary_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-GEMINI_API_KEY=your_gemini_api_key
-# Optional
-GEMINI_MODEL=gemini-2.5-flash
+GROQ_API_KEY=your_groq_api_key
+# Optional, defaults to openai/gpt-oss-120b
+GROQ_MODEL=openai/gpt-oss-120b
 # Extra origins allowed by CORS, comma-separated
 CLIENT_ORIGINS=http://localhost:4173
 ```

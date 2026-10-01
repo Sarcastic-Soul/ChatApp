@@ -1,4 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
 import Conversation from "../models/conversation.model.js";
 import Message from "../models/message.model.js";
 import User from "../models/user.model.js";
@@ -278,46 +277,75 @@ export const addReaction = async (req, res) => {
     }
 };
 
+// Groq's free tier allows 8K tokens a minute on this model, and one draft
+// uses a few hundred, so the limit is not a problem at this app's scale.
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+
 export const generateMagicReply = async (req, res) => {
     try {
         const { messages, requestedTone } = req.body;
 
-        if (!process.env.GEMINI_API_KEY) {
-            return res
-                .status(500)
-                .json({ error: "Gemini API key is missing." });
+        if (!process.env.GROQ_API_KEY) {
+            return res.status(500).json({ error: "Groq API key is missing." });
+        }
+        if (!Array.isArray(messages) || messages.length === 0) {
+            return res.status(400).json({ error: "No messages to reply to." });
         }
 
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
+        // Keep the prompt small so a single draft stays well under the token limit
         const conversationContext = messages
-            .map((msg) => `${msg.sender}: ${msg.text}`)
+            .slice(-10)
+            .map((msg) => `${msg.sender}: ${String(msg.text ?? "").slice(0, 500)}`)
             .join("\n");
 
-        let prompt = `You are helping a user write a reply in a chat app.
+        const toneRule =
+            requestedTone && requestedTone !== "Auto"
+                ? `Use this tone: ${requestedTone}. Follow it strictly.`
+                : "Match the tone, formality and style of the conversation.";
 
-Here is the recent conversation history:
-${conversationContext}
+        const response = await fetch(GROQ_URL, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                model: GROQ_MODEL,
+                messages: [
+                    {
+                        role: "system",
+                        content: `You help a user write their next message in a chat app. The user is "Me". Write only the next message "Me" should send: short, natural and fitting the conversation. Return the exact text to send, with no quotes, labels or extra commentary. ${toneRule}`,
+                    },
+                    { role: "user", content: conversationContext },
+                ],
+                reasoning_effort: "low",
+                include_reasoning: false,
+                max_completion_tokens: 512,
+                temperature: 0.7,
+            }),
+            signal: AbortSignal.timeout(20000),
+        });
 
-Instructions:
-1. Write the NEXT message that "Me" (the user) should send.
-2. The response should be concise, natural, and fit the flow of the conversation.
-3. DO NOT wrap the response in quotes or add conversational filler. Just return the exact text to be sent.
-`;
-
-        if (requestedTone && requestedTone !== "Auto") {
-            prompt += `4. The user has specifically requested this tone/action: [${requestedTone}]. You MUST follow this tone strictly.`;
-        } else {
-            prompt += `4. No specific tone was requested. Analyze the conversation history and MATCH the existing tone, formality, and style of the chat.`;
+        if (!response.ok) {
+            const detail = await response.text();
+            console.error("Groq error:", response.status, detail);
+            if (response.status === 429) {
+                return res
+                    .status(429)
+                    .json({ error: "Too many AI requests right now. Try again in a minute." });
+            }
+            return res.status(502).json({ error: "Failed to generate reply" });
         }
 
-        const result = await ai.models.generateContent({
-            model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
-            contents: prompt,
-        });
-        let replyText = (result.text || "").trim();
+        const data = await response.json();
+        const replyText = (data.choices?.[0]?.message?.content || "")
+            .trim()
+            .replace(/^["']|["']$/g, "");
 
-        replyText = replyText.replace(/^["']|["']$/g, "");
+        if (!replyText) {
+            return res.status(502).json({ error: "Failed to generate reply" });
+        }
 
         res.json({ reply: replyText });
     } catch (error) {
