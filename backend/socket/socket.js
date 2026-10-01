@@ -59,16 +59,6 @@ io.on("connection", async (socket) => {
     onlineUsers.set(userId, (onlineUsers.get(userId) || 0) + 1);
     emitOnlineUsers();
 
-    try {
-        const groups = await Conversation.find(
-            { participants: userId, isGroupChat: true },
-            "_id",
-        ).lean();
-        groups.forEach((group) => socket.join(group._id.toString()));
-    } catch (error) {
-        console.error("Error joining group rooms:", error.message);
-    }
-
     // Sends to a user's room, or to a group room this socket belongs to
     const relay = (targetId, event, payload) => {
         const target = targetId?.toString();
@@ -135,6 +125,18 @@ io.on("connection", async (socket) => {
         else onlineUsers.delete(userId);
         emitOnlineUsers();
     });
+
+    // Join group rooms last, so the handlers above are already listening
+    // while this query runs
+    try {
+        const groups = await Conversation.find(
+            { participants: userId, isGroupChat: true },
+            "_id",
+        ).lean();
+        groups.forEach((group) => socket.join(group._id.toString()));
+    } catch (error) {
+        console.error("Error joining group rooms:", error.message);
+    }
 });
 
 export { app, io, server };
