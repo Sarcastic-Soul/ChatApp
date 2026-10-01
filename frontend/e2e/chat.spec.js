@@ -25,7 +25,7 @@ test("two people chat in real time", async ({ browser }) => {
     await alice.getByRole("button", { name: "New chat or group" }).click();
     await alice.getByRole("menuitem", { name: "New chat" }).click();
     await alice.getByRole("dialog").getByText("Bob Test").click();
-    await alice.getByRole("textbox", { name: "Message" }).fill("Hi Bob, it's Alice");
+    await alice.getByRole("textbox", { name: "Message", exact: true }).fill("Hi Bob, it's Alice");
     await alice.getByRole("button", { name: "Send" }).click();
     await expect(alice.getByText("Hi Bob, it's Alice")).toBeVisible();
 
@@ -35,11 +35,11 @@ test("two people chat in real time", async ({ browser }) => {
     await expect(bob.getByText("Hi Bob, it's Alice")).toBeVisible();
 
     // From here on, messages arrive over the socket with no reload
-    await bob.getByRole("textbox", { name: "Message" }).fill("Hey Alice!");
+    await bob.getByRole("textbox", { name: "Message", exact: true }).fill("Hey Alice!");
     await bob.getByRole("button", { name: "Send" }).click();
     await expect(alice.getByText("Hey Alice!")).toBeVisible();
 
-    await alice.getByRole("textbox", { name: "Message" }).fill("Profanity check: shit happens");
+    await alice.getByRole("textbox", { name: "Message", exact: true }).fill("Profanity check: shit happens");
     await alice.getByRole("button", { name: "Send" }).click();
     await expect(bob.getByText("Profanity check: **** happens")).toBeVisible();
 
