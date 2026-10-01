@@ -148,7 +148,7 @@ const Message = ({ message }) => {
         const isMissed = message.message.includes("Missed");
         const isVideo = message.message.includes("Video") || message.message.includes("video");
         
-        let CallIcon = FiPhone;
+        let CallIcon;
         if (isMissed && isVideo) CallIcon = FiVideoOff;
         else if (isMissed && !isVideo) CallIcon = FiPhoneMissed;
         else if (!isMissed && isVideo) CallIcon = FiVideo;
