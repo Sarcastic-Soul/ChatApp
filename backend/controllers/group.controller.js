@@ -61,14 +61,9 @@ export const getGroupDetails = async (req, res) => {
 
 export const createGroup = async (req, res) => {
     try {
+        // Checked by createGroupSchema
         const { name, participants } = req.body;
         const userId = req.user._id;
-
-        if (!name || !participants || participants.length < 1) {
-            return res.status(400).json({
-                error: "Please provide a group name and at least one participant.",
-            });
-        }
 
         const { default: User } = await import("../models/user.model.js");
 
@@ -86,7 +81,10 @@ export const createGroup = async (req, res) => {
             }
         }
 
-        const allParticipants = [...participants, userId];
+        const allParticipants = [
+            ...participants.filter((pId) => pId !== userId.toString()),
+            userId,
+        ];
 
         const newGroup = new Conversation({
             groupName: name,
@@ -160,12 +158,8 @@ export const deleteGroup = async (req, res) => {
 export const updateGroupName = async (req, res) => {
     try {
         const { groupId } = req.params;
-        const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
+        const { name } = req.body;
         const userId = req.user._id;
-
-        if (!name) {
-            return res.status(400).json({ error: "Group name is required." });
-        }
 
         const group = await Conversation.findById(groupId);
 
@@ -264,6 +258,10 @@ export const removeParticipant = async (req, res) => {
                 .json({ error: "Cannot remove the only admin." });
         }
 
+        if (!group.participants.some((p) => p.toString() === userIdToRemove)) {
+            return res.status(400).json({ error: "User is not in the group." });
+        }
+
         const { default: User } = await import("../models/user.model.js");
         const removedUser = await User.findById(userIdToRemove);
 
@@ -277,7 +275,9 @@ export const removeParticipant = async (req, res) => {
 
         await group.save();
         const isLeaving = userId.toString() === userIdToRemove.toString();
-        const text = isLeaving ? `left the group` : `removed ${removedUser.fullName}`;
+        const text = isLeaving
+            ? `left the group`
+            : `removed ${removedUser?.fullName || "a member"}`;
         await emitSystemMessage(group._id, userId, text);
         removeUserFromRoom(userIdToRemove, group._id);
         res.status(200).json(group);
@@ -323,7 +323,11 @@ export const dismissAdmin = async (req, res) => {
         );
 
         await group.save();
-        await emitSystemMessage(group._id, userId, `dismissed ${dismissedUser.fullName} from admin`);
+        await emitSystemMessage(
+            group._id,
+            userId,
+            `dismissed ${dismissedUser?.fullName || "a member"} from admin`,
+        );
         res.status(200).json(group);
     } catch (error) {
         console.error("Error in dismissAdmin: ", error.message);
@@ -353,12 +357,22 @@ export const makeAdmin = async (req, res) => {
             return res.status(400).json({ error: "User is already an admin." });
         }
 
+        if (!group.participants.some((p) => p.toString() === userIdToMakeAdmin)) {
+            return res
+                .status(400)
+                .json({ error: "Only group members can be made admins." });
+        }
+
         const { default: User } = await import("../models/user.model.js");
         const newAdmin = await User.findById(userIdToMakeAdmin);
 
         group.admins.push(userIdToMakeAdmin);
         await group.save();
-        await emitSystemMessage(group._id, userId, `promoted ${newAdmin.fullName} to admin`);
+        await emitSystemMessage(
+            group._id,
+            userId,
+            `promoted ${newAdmin?.fullName || "a member"} to admin`,
+        );
         res.status(200).json(group);
     } catch (error) {
         console.error("Error in makeAdmin: ", error.message);

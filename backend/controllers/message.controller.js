@@ -7,7 +7,8 @@ import { cleanProfanity } from "../utils/profanityFilter.js";
 
 export const sendMessage = async (req, res) => {
     try {
-        const { message, mediaUrl, mediaType, replyTo, isCall, isForwarded, isSystem } = req.body;
+        // Checked by sendMessageSchema. System messages are only made by the server.
+        const { message, mediaUrl, mediaType, replyTo, isCall, isForwarded } = req.body;
         const { id: conversationIdOrUserId } = req.params;
         const senderId = req.user._id;
 
@@ -51,11 +52,10 @@ export const sendMessage = async (req, res) => {
             receiverId: conversation._id,
             message: cleanedText ? encryptText(cleanedText) : "",
             mediaUrl: mediaUrl || null,
-            mediaType: mediaType || "text",
+            mediaType,
             replyTo: replyTo || null,
-            isCall: isCall || false,
-            isForwarded: isForwarded || false,
-            isSystem: isSystem || false,
+            isCall,
+            isForwarded,
         });
 
         conversation.messages.push(newMessage._id);
@@ -116,7 +116,7 @@ export const sendMessage = async (req, res) => {
 export const getMessages = async (req, res) => {
     try {
         const { id: conversationId } = req.params;
-        const { before, limit = 50 } = req.query;
+        const { before, limit } = req.query;
         const senderId = req.user._id;
 
         const conversation = await Conversation.findById(conversationId);
@@ -138,7 +138,7 @@ export const getMessages = async (req, res) => {
 
         const messages = await Message.find(messageQuery)
             .sort({ createdAt: -1 })
-            .limit(parseInt(limit))
+            .limit(limit)
             .populate({
                 path: "replyTo",
                 select: "message mediaType mediaUrl senderId",
@@ -289,18 +289,14 @@ export const generateMagicReply = async (req, res) => {
         if (!process.env.GROQ_API_KEY) {
             return res.status(500).json({ error: "Groq API key is missing." });
         }
-        if (!Array.isArray(messages) || messages.length === 0) {
-            return res.status(400).json({ error: "No messages to reply to." });
-        }
-
-        // Keep the prompt small so a single draft stays well under the token limit
+        // magicReplySchema keeps only the last 10 messages, 500 characters
+        // each, so a single draft stays well under the token limit
         const conversationContext = messages
-            .slice(-10)
-            .map((msg) => `${msg.sender}: ${String(msg.text ?? "").slice(0, 500)}`)
+            .map((msg) => `${msg.sender}: ${msg.text}`)
             .join("\n");
 
         const toneRule =
-            requestedTone && requestedTone !== "Auto"
+            requestedTone !== "Auto"
                 ? `Use this tone: ${requestedTone}. Follow it strictly.`
                 : "Match the tone, formality and style of the conversation.";
 

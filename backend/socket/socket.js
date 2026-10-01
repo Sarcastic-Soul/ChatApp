@@ -4,6 +4,7 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import Conversation from "../models/conversation.model.js";
 import { allowedOrigins } from "../config/allowedOrigins.js";
+import { socketEvents } from "../validation/socketEvents.js";
 
 const app = express();
 
@@ -79,8 +80,17 @@ io.on("connection", async (socket) => {
         }
     };
 
+    // Listens for a client event and drops any payload that does not match
+    // its schema, so a bad payload can't throw inside a handler
+    const on = (event, handler) => {
+        socket.on(event, (payload) => {
+            const result = socketEvents[event].safeParse(payload);
+            if (result.success) handler(result.data);
+        });
+    };
+
     // WebRTC Signaling Events
-    socket.on("callUser", ({ userToCall, signalData, callerName, callerPic, callType }) => {
+    on("callUser", ({ userToCall, signalData, callerName, callerPic, callType }) => {
         relay(userToCall, "incomingCall", {
             signal: signalData,
             from: userId,
@@ -90,47 +100,34 @@ io.on("connection", async (socket) => {
         });
     });
 
-    socket.on("answerCall", (data) => {
-        relay(data.to, "callAccepted", data.signal);
-    });
-
-    socket.on("endCall", (data) => {
-        relay(data.to, "callEnded");
-    });
-
-    socket.on("iceCandidate", (data) => {
-        relay(data.to, "iceCandidate", data.candidate);
-    });
-
-    socket.on("toggleVideo", (data) => {
-        relay(data.to, "peerVideoToggled", data.isVideoOff);
-    });
+    on("answerCall", ({ to, signal }) => relay(to, "callAccepted", signal));
+    on("endCall", ({ to }) => relay(to, "callEnded"));
+    on("iceCandidate", ({ to, candidate }) => relay(to, "iceCandidate", candidate));
+    on("toggleVideo", ({ to, isVideoOff }) => relay(to, "peerVideoToggled", isVideoOff));
 
     // Typing Indicators. receiverId is the other user in a 1-on-1 chat; in a
     // group the event goes to the group room.
-    const relayTyping = (event, data = {}) => {
+    const relayTyping = (event, data) => {
         const target = data.isGroupChat ? data.conversationId : data.receiverId;
         relay(target, event, { conversationId: data.conversationId, userId });
     };
 
-    socket.on("typing", (data) => relayTyping("typing", data));
-    socket.on("stopTyping", (data) => relayTyping("stopTyping", data));
+    on("typing", (data) => relayTyping("typing", data));
+    on("stopTyping", (data) => relayTyping("stopTyping", data));
 
-    socket.on("joinGroup", async (groupId) => {
+    on("joinGroup", async (groupId) => {
         try {
             const isMember = await Conversation.exists({
                 _id: groupId,
                 participants: userId,
             });
-            if (isMember) socket.join(groupId.toString());
-        } catch {
-            // Invalid group id, ignore
+            if (isMember) socket.join(groupId);
+        } catch (error) {
+            console.error("Error joining group room:", error.message);
         }
     });
 
-    socket.on("leaveGroup", (groupId) => {
-        socket.leave(groupId?.toString());
-    });
+    on("leaveGroup", (groupId) => socket.leave(groupId));
 
     socket.on("disconnect", () => {
         const count = (onlineUsers.get(userId) || 1) - 1;

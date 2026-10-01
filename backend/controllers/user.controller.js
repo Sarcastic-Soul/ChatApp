@@ -118,12 +118,6 @@ export const updateUserProfilePic = async (req, res) => {
         const { profilePic } = req.body;
         const userId = req.user._id;
 
-        if (!profilePic) {
-            return res
-                .status(400)
-                .json({ error: "No profile picture URL provided." });
-        }
-
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             { profilePic: profilePic },
@@ -148,10 +142,6 @@ export const updatePrivacy = async (req, res) => {
     try {
         const { isPublic } = req.body;
         const userId = req.user._id;
-
-        if (typeof isPublic !== "boolean") {
-            return res.status(400).json({ error: "Invalid privacy setting." });
-        }
 
         const updatedUser = await User.findByIdAndUpdate(
             userId,

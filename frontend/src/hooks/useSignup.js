@@ -65,6 +65,15 @@ function handleInputErrors({ fullName, username, password, confirmPassword }) {
         return false;
     }
 
+    // Same rule as signupSchema on the server
+    if (!/^[a-zA-Z0-9._]{3,30}$/.test(username.trim())) {
+        notifications.show({
+            message: "Username must be 3 to 30 letters, numbers, dots or underscores",
+            color: "red",
+        });
+        return false;
+    }
+
     if (password.length < 6) {
         notifications.show({ message: "Password must be at least 6 characters", color: "red" });
         return false;

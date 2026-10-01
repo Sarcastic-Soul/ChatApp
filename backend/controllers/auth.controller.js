@@ -5,12 +5,8 @@ import generateTokenAndSetCookie from "../utils/generateToken.js";
 
 export const signup = async (req, res) => {
     try {
-        const { fullName, username, password, confirmPassword, gender } =
-            req.body;
-
-        if (password !== confirmPassword) {
-            return res.status(400).json({ error: "Passwords don't match" });
-        }
+        // Checked by signupSchema
+        const { fullName, username, password } = req.body;
 
         const user = await User.findOne({ username });
 
@@ -22,13 +18,12 @@ export const signup = async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        const profilePicURL = `https://ui-avatars.com/api/?name=${fullName}&background=random&bold=true`;
+        const profilePicURL = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=random&bold=true`;
 
         const newUser = new User({
             fullName,
             username,
             password: hashedPassword,
-            gender,
             profilePic: profilePicURL,
         });
 
