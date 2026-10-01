@@ -1,0 +1,130 @@
+{
+  "measured": "2026-10-01",
+  "what": "Click on a chat until its newest message is visible. 50 messages, 10 runs per case, median and p90 in ms. Production build served locally, network shaped with Chrome DevTools presets.",
+  "results": {
+    "No throttling": {
+      "coldMedianMs": 197.5,
+      "warmMedianMs": 165.5,
+      "coldP90Ms": 233,
+      "warmP90Ms": 194,
+      "fasterBy": "16%",
+      "cold": [
+        186,
+        205,
+        233,
+        165,
+        225,
+        190,
+        175,
+        240,
+        224,
+        155
+      ],
+      "warm": [
+        179,
+        133,
+        194,
+        222,
+        168,
+        163,
+        139,
+        130,
+        186,
+        145
+      ]
+    },
+    "Fast 4G": {
+      "coldMedianMs": 240,
+      "warmMedianMs": 173.5,
+      "coldP90Ms": 270,
+      "warmP90Ms": 181,
+      "fasterBy": "28%",
+      "cold": [
+        203,
+        286,
+        248,
+        241,
+        218,
+        270,
+        233,
+        241,
+        222,
+        239
+      ],
+      "warm": [
+        235,
+        181,
+        180,
+        146,
+        180,
+        175,
+        172,
+        168,
+        150,
+        149
+      ]
+    },
+    "Slow 4G": {
+      "coldMedianMs": 289,
+      "warmMedianMs": 111,
+      "coldP90Ms": 400,
+      "warmP90Ms": 146,
+      "fasterBy": "62%",
+      "cold": [
+        340,
+        400,
+        334,
+        274,
+        304,
+        243,
+        246,
+        259,
+        263,
+        403
+      ],
+      "warm": [
+        188,
+        146,
+        90,
+        89,
+        93,
+        119,
+        106,
+        93,
+        116,
+        145
+      ]
+    },
+    "3G": {
+      "coldMedianMs": 407,
+      "warmMedianMs": 103.5,
+      "coldP90Ms": 422,
+      "warmP90Ms": 212,
+      "fasterBy": "75%",
+      "cold": [
+        422,
+        406,
+        406,
+        403,
+        401,
+        419,
+        410,
+        408,
+        437,
+        388
+      ],
+      "warm": [
+        116,
+        212,
+        197,
+        86,
+        579,
+        97,
+        108,
+        95,
+        99,
+        84
+      ]
+    }
+  }
+}

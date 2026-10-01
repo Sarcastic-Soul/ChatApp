@@ -21,10 +21,10 @@ otherwise.
   - [x] Dockerfile for the backend
   - [x] docker-compose with backend, frontend and MongoDB, so the app runs
         with one command
-- [ ] **Measure the IndexedDB cache speed-up**
-  - [ ] Time "open chat until messages show" with and without the cache
+- [x] **Measure the IndexedDB cache speed-up**
+  - [x] Time "open chat until messages show" with and without the cache
         (Playwright or Lighthouse), on a throttled network
-  - [ ] Put the before and after numbers in the README
+  - [x] Put the before and after numbers in the README
 
 ## Later
 

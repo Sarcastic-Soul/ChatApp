@@ -8,6 +8,8 @@ const HOST = "127.0.0.1";
 
 export default defineConfig({
     testDir: "./e2e",
+    // Benchmarks only run when asked for (pnpm run bench:cache)
+    testMatch: process.env.BENCH ? "bench/*.bench.js" : "*.spec.js",
     timeout: 60_000,
     expect: { timeout: 10_000 },
     fullyParallel: false,
@@ -36,10 +38,18 @@ export default defineConfig({
             },
         },
         {
-            command: `pnpm exec vite --host ${HOST} --port ${APP_PORT} --strictPort`,
+            // Benchmarks time the production build, not the dev server
+            command: process.env.BENCH
+                ? `pnpm exec vite build && pnpm exec vite preview --host ${HOST} --port ${APP_PORT} --strictPort`
+                : `pnpm exec vite --host ${HOST} --port ${APP_PORT} --strictPort`,
             url: `http://${HOST}:${APP_PORT}`,
-            timeout: 60_000,
-            env: { VITE_API_URL: `http://${HOST}:${API_PORT}` },
+            timeout: 120_000,
+            // NODE_ENV leaks in from the test runner, and a development
+            // NODE_ENV makes vite build ship React's slower dev build
+            env: {
+                VITE_API_URL: `http://${HOST}:${API_PORT}`,
+                ...(process.env.BENCH && { NODE_ENV: "production" }),
+            },
         },
     ],
 });

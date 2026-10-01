@@ -42,7 +42,7 @@ The backend runs on Render's free tier. A GitHub Actions job pings it every 10 m
 - One-on-one and group chats, with typing indicators, read receipts and online status
 - Replies, edits, delete for everyone, reactions and forwarding
 - Images, video and voice notes, uploaded straight from the browser to Cloudinary
-- Chats load instantly from an IndexedDB cache, then refresh from the server
+- Chats open from an IndexedDB cache, then refresh from the server (75% faster on a 3G connection, see [Cache benchmark](#cache-benchmark))
 
 **Calls**
 - Voice and video calls between browsers over WebRTC, with mute and camera toggles
@@ -209,6 +209,7 @@ In development, Vite forwards `/api` to `VITE_API_URL` (default `http://localhos
 | `frontend` | `pnpm run lint` | Run ESLint |
 | `frontend` | `pnpm test` | Run the component, store, cache and formatter tests |
 | `frontend` | `pnpm run test:e2e` | Run the Playwright end-to-end tests (starts its own backend and in-memory MongoDB) |
+| `frontend` | `pnpm run bench:cache` | Time opening a chat with and without the IndexedDB cache (writes `docs/benchmarks/cache.json`) |
 
 ## Testing
 
@@ -223,6 +224,19 @@ The backend tests need no setup and never touch a real database. They start an i
 - **Backend (126 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response, TURN credentials from mocked Cloudflare and Metered responses, and push notifications with a mocked `web-push` (who gets one, the payload, dropped subscriptions). Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status and that bad payloads are dropped.
 - **Frontend (41 tests):** the login and sign-up pages with Testing Library on jsdom (form submit, server errors, client checks, the saved session check), the Zustand conversation store, the IndexedDB message cache (on `fake-indexeddb`) and the time formatters.
 - **End to end (Playwright):** starts the real backend on an in-memory MongoDB and the Vite app, then two browsers sign up, start a chat and swap messages live over the socket.
+
+### Cache benchmark
+
+Opening a chat first shows the messages saved in IndexedDB, then swaps in the server's copy. `pnpm run bench:cache` measures how much that helps: it builds the app for production, fills a chat with 50 messages, and times the click on the chat until its newest message is on screen. "No cache" deletes the IndexedDB database before each run; "with cache" keeps it. The network is slowed with Chrome DevTools' presets. Median of 10 runs each:
+
+| Network | No cache | With cache | Faster by |
+| --- | --- | --- | --- |
+| No throttling | 198 ms | 166 ms | 16% |
+| Fast 4G | 240 ms | 174 ms | 28% |
+| Slow 4G | 289 ms | 111 ms | 62% |
+| 3G | 407 ms | 104 ms | 75% |
+
+These ran against a backend on the same machine, so the "no cache" column leaves out real server time; on the free Render instance each request adds more, and a sleeping instance adds seconds. The roughly 100 to 170 ms that's left with the cache is reading IndexedDB and rendering 50 messages. Raw numbers and p90s are in [`docs/benchmarks/cache.json`](docs/benchmarks/cache.json).
 
 GitHub Actions runs all three suites, ESLint and the production build on every push to `main` and on pull requests (`.github/workflows/ci.yml`).
 
