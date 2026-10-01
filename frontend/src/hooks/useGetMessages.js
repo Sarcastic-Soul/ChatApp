@@ -44,7 +44,7 @@ const useGetMessages = () => {
 
             // Stale-While-Revalidate: always fetch the latest messages from the network
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL}/api/messages/${conversationId}?limit=50`,
+                `/api/messages/${conversationId}?limit=50`,
                 { credentials: "include" },
             );
             if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -88,7 +88,7 @@ const useGetMessages = () => {
         try {
             const oldestMessageId = messages[0]?._id;
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL}/api/messages/${conversationId}?before=${oldestMessageId}&limit=50`,
+                `/api/messages/${conversationId}?before=${oldestMessageId}&limit=50`,
                 { credentials: "include" },
             );
 

@@ -24,7 +24,7 @@ const useGroupInfo = () => {
     const fetchGroupDetails = useCallback(async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/groups/${groupId}`,
+                `/api/groups/${groupId}`,
             );
             const data = await res.json();
 
@@ -54,7 +54,7 @@ const useGroupInfo = () => {
         setIsUploading(true);
         try {
             const sigRes = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/cloudinary/signature`,
+                `/api/cloudinary/signature`,
             );
             const sigData = await sigRes.json();
 
@@ -80,7 +80,7 @@ const useGroupInfo = () => {
             if (uploadData.error) throw new Error(uploadData.error.message);
 
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/groups/${groupId}/update`,
+                `/api/groups/${groupId}/update`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -119,7 +119,7 @@ const useGroupInfo = () => {
         setIsUpdatingName(true);
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/groups/${groupId}/name`,
+                `/api/groups/${groupId}/name`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -157,7 +157,7 @@ const useGroupInfo = () => {
         setSearchingUsers(true);
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/users/sidebar`,
+                `/api/users/sidebar`,
             );
             const data = await res.json();
             if (data.error) throw new Error(data.error);
@@ -184,7 +184,7 @@ const useGroupInfo = () => {
     const handleAddMember = async (userIdToAdd) => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/groups/${groupId}/participants/add`,
+                `/api/groups/${groupId}/participants/add`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -210,7 +210,7 @@ const useGroupInfo = () => {
     const handleRemoveMember = async (userId) => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/groups/${groupId}/participants/remove`,
+                `/api/groups/${groupId}/participants/remove`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -237,7 +237,7 @@ const useGroupInfo = () => {
     const handleDismissAdmin = async (userIdToDismiss) => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/groups/${groupId}/admins/remove`,
+                `/api/groups/${groupId}/admins/remove`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -263,7 +263,7 @@ const useGroupInfo = () => {
     const handleMakeAdmin = async (userIdToMakeAdmin) => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/groups/${groupId}/admins/add`,
+                `/api/groups/${groupId}/admins/add`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },

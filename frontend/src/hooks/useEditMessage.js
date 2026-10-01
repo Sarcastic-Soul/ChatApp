@@ -9,7 +9,7 @@ const useEditMessage = () => {
     const editMessage = async (messageId, newText) => {
         setLoading(true);
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/messages/edit/${messageId}`, {
+            const res = await fetch(`/api/messages/edit/${messageId}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",

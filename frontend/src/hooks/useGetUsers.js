@@ -9,7 +9,7 @@ const useGetUsers = () => {
 		const getUsers = async () => {
 			setLoading(true);
 			try {
-				const res = await fetch(`${import.meta.env.VITE_API_URL}/api/users`);
+				const res = await fetch(`/api/users`);
 				const data = await res.json();
 				if (data.error) {
 					throw new Error(data.error);

@@ -27,7 +27,7 @@ const CreateGroupModal = ({ onClose }) => {
             setLoading(true);
             try {
                 const res = await fetch(
-                    `${import.meta.env.VITE_API_URL}/api/users`,
+                    `/api/users`,
                 );
                 const data = await res.json();
                 if (data.error) throw new Error(data.error);
@@ -64,7 +64,7 @@ const CreateGroupModal = ({ onClose }) => {
 
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL}/api/groups/create`,
+                `/api/groups/create`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },

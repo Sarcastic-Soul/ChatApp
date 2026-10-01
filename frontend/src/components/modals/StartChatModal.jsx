@@ -25,7 +25,7 @@ const StartChatModal = ({ onClose }) => {
             setLoading(true);
             try {
                 const res = await fetch(
-                    `${import.meta.env.VITE_API_URL}/api/users/new`,
+                    `/api/users/new`,
                 );
                 const data = await res.json();
                 if (data.error) throw new Error(data.error);

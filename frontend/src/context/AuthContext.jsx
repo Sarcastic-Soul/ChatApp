@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 export const AuthContext = createContext();
 
@@ -29,6 +29,22 @@ export const AuthContextProvider = ({ children }) => {
         }
         setAuthUser(user);
     };
+
+    // The saved user can outlive its cookie (expired, or set on the old API
+    // domain). Check once on load and log out if the server says no.
+    const hasStoredUser = Boolean(authUser);
+    useEffect(() => {
+        if (!hasStoredUser) return;
+        fetch("/api/auth/me")
+            .then(async (res) => {
+                if (res.status === 401) updateAuthUser(null);
+                else if (res.ok) updateAuthUser(await res.json());
+            })
+            .catch(() => {
+                // Offline or server waking up: keep the saved user
+            });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
 	return <AuthContext.Provider value={{ authUser, setAuthUser: updateAuthUser }}>{children}</AuthContext.Provider>;
 };

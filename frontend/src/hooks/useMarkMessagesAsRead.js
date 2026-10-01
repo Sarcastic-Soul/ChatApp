@@ -3,7 +3,7 @@ const useMarkMessagesAsRead = () => {
     const markAsRead = useCallback(async (conversationId) => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL}/api/messages/read/${conversationId}`,
+                `/api/messages/read/${conversationId}`,
                 {
                     method: "POST",
                     credentials: "include",

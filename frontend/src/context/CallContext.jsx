@@ -149,7 +149,7 @@ export const CallContextProvider = ({ children }) => {
                 logText = call.callType === "audio" ? `Voice call ended • ${formattedTime}` : `Video call ended • ${formattedTime}`;
             }
 
-            fetch(`${import.meta.env.VITE_API_URL}/api/messages/send/${call.userToCall}`, {
+            fetch(`/api/messages/send/${call.userToCall}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ message: logText, isCall: true }),

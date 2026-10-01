@@ -46,7 +46,7 @@ const Profile = () => {
         setIsUploading(true);
         try {
             const sigRes = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/cloudinary/signature/profile-pic`,
+                `/api/cloudinary/signature/profile-pic`,
             );
             const sigData = await sigRes.json();
 
@@ -72,7 +72,7 @@ const Profile = () => {
             if (uploadData.error) throw new Error(uploadData.error.message);
 
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/users/update-pic`,
+                `/api/users/update-pic`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -104,7 +104,7 @@ const Profile = () => {
         setIsUpdatingPrivacy(true);
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/users/privacy`,
+                `/api/users/privacy`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },

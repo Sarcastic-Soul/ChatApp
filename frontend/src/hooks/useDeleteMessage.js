@@ -9,7 +9,7 @@ const useDeleteMessage = () => {
     const deleteMessage = async (messageId) => {
         setLoading(true);
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/messages/delete/${messageId}`, {
+            const res = await fetch(`/api/messages/delete/${messageId}`, {
                 method: "DELETE",
                 credentials: "include",
             });

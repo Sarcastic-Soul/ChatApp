@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
 const vendorGroups = [
@@ -8,16 +8,28 @@ const vendorGroups = [
     { name: "socket", test: /node_modules[\\/](socket\.io-client|engine\.io-client|socket\.io-parser|engine\.io-parser)[\\/]/ },
 ];
 
-export default defineConfig({
-    plugins: [react()],
-    server: {
-        port: 3000,
-    },
-    build: {
-        rolldownOptions: {
-            output: {
-                codeSplitting: { groups: vendorGroups },
+export default defineConfig(({ mode }) => {
+    const env = { ...loadEnv(mode, process.cwd(), "VITE_"), ...process.env };
+
+    return {
+        plugins: [react()],
+        server: {
+            port: 3000,
+            // REST calls use same-origin /api paths. In dev they are proxied to
+            // the backend; in production vercel.json rewrites them to Render.
+            proxy: {
+                "/api": {
+                    target: env.VITE_API_URL || "http://localhost:5000",
+                    changeOrigin: true,
+                },
             },
         },
-    },
+        build: {
+            rolldownOptions: {
+                output: {
+                    codeSplitting: { groups: vendorGroups },
+                },
+            },
+        },
+    };
 });

@@ -8,34 +8,43 @@ export const useSocketContext = () => {
 	return useContext(SocketContext);
 };
 
+// The socket server runs on the backend's own domain, so it can't read the
+// auth cookie. Each (re)connect fetches a short-lived token instead.
+const fetchSocketToken = async (cb) => {
+	try {
+		const res = await fetch("/api/auth/socket-token");
+		const data = await res.json();
+		cb({ token: data.token });
+	} catch {
+		cb({ token: null });
+	}
+};
+
 export const SocketContextProvider = ({ children }) => {
 	const [socket, setSocket] = useState(null);
 	const [onlineUsers, setOnlineUsers] = useState([]);
 	const { authUser } = useAuthContext();
+	const userId = authUser?._id;
 
 	useEffect(() => {
-		if (authUser) {
-			const socket = io(import.meta.env.VITE_API_URL, {
-				query: {
-					userId: authUser._id,
-				},
-			});
+		if (!userId) return;
 
-			setSocket(socket);
+		const newSocket = io(import.meta.env.VITE_API_URL, {
+			auth: fetchSocketToken,
+		});
 
-			// socket.on() is used to listen to the events. can be used both on client and server side
-			socket.on("getOnlineUsers", (users) => {
-				setOnlineUsers(users);
-			});
+		setSocket(newSocket);
 
-			return () => socket.close();
-		} else {
-			if (socket) {
-				socket.close();
-				setSocket(null);
-			}
-		}
-	}, [authUser]);
+		newSocket.on("getOnlineUsers", (users) => {
+			setOnlineUsers(users);
+		});
+
+		return () => {
+			newSocket.close();
+			setSocket(null);
+			setOnlineUsers([]);
+		};
+	}, [userId]);
 
 	return <SocketContext.Provider value={{ socket, onlineUsers }}>{children}</SocketContext.Provider>;
 };

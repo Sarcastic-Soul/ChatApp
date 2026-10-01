@@ -12,18 +12,6 @@ import { MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import useThemeStore from "./zustand/useThemeStore.js";
 
-const originalFetch = window.fetch;
-window.fetch = async (...args) => {
-    let [resource, config] = args;
-    if (config === undefined) {
-        config = {};
-    }
-    if (config.credentials === undefined) {
-        config.credentials = "include";
-    }
-    return originalFetch(resource, config);
-};
-
 const ThemeWrapper = () => {
     const primaryColor = useThemeStore((state) => state.primaryColor);
 

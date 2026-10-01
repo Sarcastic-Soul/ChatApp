@@ -91,7 +91,7 @@ const Message = ({ message }) => {
 
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/messages/react/${message._id}`,
+                `/api/messages/react/${message._id}`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },

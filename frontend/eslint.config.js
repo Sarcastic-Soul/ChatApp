@@ -25,4 +25,8 @@ export default [
             "react-refresh/only-export-components": "warn",
         },
     },
+    {
+        files: ["vite.config.js", "eslint.config.js"],
+        languageOptions: { globals: globals.node },
+    },
 ];

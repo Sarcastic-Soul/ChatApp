@@ -56,7 +56,7 @@ const useMessageInput = () => {
             });
 
             const res = await fetch(
-                `${import.meta.env.VITE_API_URL || ""}/api/messages/magic-reply`,
+                `/api/messages/magic-reply`,
                 {
                     method: "POST",
                     headers: {
@@ -197,7 +197,7 @@ const useMessageInput = () => {
             setIsUploading(true);
             try {
                 const sigRes = await fetch(
-                    `${import.meta.env.VITE_API_URL || ""}/api/cloudinary/signature`,
+                    `/api/cloudinary/signature`,
                 );
                 const sigData = await sigRes.json();
 
