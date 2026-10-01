@@ -104,18 +104,18 @@ d2 docs/architecture.d2 docs/architecture.svg
 
 | Area | Tools |
 | --- | --- |
-| Frontend | React 19, Vite 8, Mantine 9, React Router 7, Zustand 5, Motion, Phosphor Icons, Socket.io client, `idb` |
+| Frontend | React 19, TypeScript, Vite 8, Mantine 9, React Router 7, Zustand 5, Motion, Phosphor Icons, Socket.io client, `idb` |
 | Backend | Node.js 22, TypeScript (run by Node directly), Express 5, Socket.io 4, Mongoose 9, zod 4, JWT, bcrypt, helmet, `express-rate-limit`, `leo-profanity` |
 | Services | MongoDB Atlas, Cloudinary, Groq, Google STUN, Cloudflare TURN |
 | Hosting | Vercel (frontend and `/api` proxy), Render (API and sockets), GitHub Actions (keep-alive ping) |
-| Tooling | Docker Compose, pnpm, Vitest, supertest, mongodb-memory-server, ESLint 10 (flat config), GitHub Actions CI, D2 |
+| Tooling | Docker Compose, pnpm, Vitest, supertest, mongodb-memory-server, ESLint 10 (flat config, typescript-eslint), GitHub Actions CI, D2 |
 
 ## Project structure
 
 ```text
 ChatApp/
 ├── .github/workflows/
-│   ├── ci.yml            # Lint, tests and build on every push
+│   ├── ci.yml            # Type checks, lint, tests and build on every push
 │   └── keep-alive.yml    # Pings the backend every 10 minutes
 ├── backend/
 │   ├── config/           # Allowed CORS origins, required env variables
@@ -145,10 +145,14 @@ ChatApp/
     │   ├── context/      # Auth, socket and call state
     │   ├── hooks/        # Data fetching and actions
     │   ├── pages/        # Landing, login, sign-up, chat, profile and group pages
-    │   ├── utils/        # IndexedDB cache and formatters
-    │   └── zustand/      # Global stores
+    │   ├── test/         # Vitest setup and a render helper with the app's providers
+    │   ├── utils/        # IndexedDB cache, uploads, push and formatters
+    │   ├── zustand/      # Global stores
+    │   ├── main.tsx      # Entry point
+    │   └── types.ts      # API response and socket event types
     ├── Dockerfile        # Build, then serve with nginx
     ├── nginx.conf        # /api proxy and SPA fallback for Docker
+    ├── tsconfig.json     # Type checking only; Vite strips the types
     └── vercel.json       # /api proxy and SPA fallback on Vercel
 ```
 
@@ -213,6 +217,7 @@ In development, Vite forwards `/api` to `VITE_API_URL` (default `http://localhos
 | `backend` | `pnpm run test:coverage` | Run the tests with a coverage report |
 | `frontend` | `pnpm run dev` | Start the Vite dev server |
 | `frontend` | `pnpm run build` | Build for production into `dist/` |
+| `frontend` | `pnpm run typecheck` | Check types with `tsc` (strict) |
 | `frontend` | `pnpm run lint` | Run ESLint |
 | `frontend` | `pnpm test` | Run the component, store, cache and formatter tests |
 | `frontend` | `pnpm run test:e2e` | Run the Playwright end-to-end tests (starts its own backend and in-memory MongoDB) |

@@ -1,0 +1,19 @@
+{
+    // Vite strips the types when it builds, so tsc only checks them and never
+    // writes output. TypeScript stays on 6.0 here (the backend uses 7) because
+    // typescript-eslint needs the JavaScript API that 7 no longer has.
+    "compilerOptions": {
+        "target": "es2022",
+        "lib": ["es2023", "dom", "dom.iterable"],
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "jsx": "react-jsx",
+        "types": ["vite/client", "@testing-library/jest-dom/vitest"],
+        "strict": true,
+        "noEmit": true,
+        "isolatedModules": true,
+        "verbatimModuleSyntax": true,
+        "skipLibCheck": true
+    },
+    "include": ["src"]
+}

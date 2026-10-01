@@ -46,10 +46,11 @@ otherwise.
   - [x] `GET /api/messages/search`, sidebar results and jump to the message
   - [ ] Run `pnpm run backfill:search` against production so older messages
         can be found
-- [ ] **TypeScript**
+- [x] **TypeScript**
   - [x] Move the backend (Node 22 type stripping, no build step; zod
         schemas supply the request types; `tsc` runs in CI)
-  - [ ] Move the frontend
+  - [x] Move the frontend (strict `tsc` in CI, typed socket events and API
+        responses)
 - [ ] **Reliable message delivery**
   - [ ] Client-made message IDs, so a retried send never creates a duplicate
   - [ ] Per-chat sequence numbers from the server, so every device shows the
