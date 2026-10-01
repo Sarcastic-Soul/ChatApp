@@ -13,7 +13,8 @@ otherwise.
   - [x] Frontend tests for the Zustand store, the IndexedDB cache and the
         time formatters
   - [x] GitHub Actions workflow running lint, tests and build on every push
-  - [ ] Switch Render auto-deploy to "After CI checks pass"
+  - [x] Deploy the backend from CI through the Render deploy hook, only
+        after the backend tests pass
   - [ ] Component tests for the login, sign-up and chat screens
         (Testing Library, needs a jsdom setup for Mantine)
   - [ ] One end-to-end Playwright run: log in, send a message, see it arrive

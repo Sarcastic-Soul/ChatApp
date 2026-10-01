@@ -94,3 +94,46 @@ jobs:
       - run: pnpm test
 
       - run: pnpm build
+
+  # Render redeploys through its deploy hook, only after the backend tests
+  # pass and only when something under backend/ changed. The hook URL is a
+  # secret: anyone who has it can trigger a deploy.
+  deploy-backend:
+    name: Deploy backend to Render
+    needs: backend
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # A manual run always deploys. So does a push whose previous commit
+      # is unknown (a force push or the first push of the branch).
+      - name: Check for backend changes
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$BEFORE" HEAD -- backend/; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "No backend changes, skipping the deploy."
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger the Render deploy hook
+        if: steps.changes.outputs.deploy == 'true'
+        env:
+          DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::error::The RENDER_DEPLOY_HOOK_URL secret is not set."
+            exit 1
+          fi
+          curl --fail --silent --show-error --max-time 30 -X POST "$DEPLOY_HOOK" > /dev/null
+          echo "Render deploy started."
