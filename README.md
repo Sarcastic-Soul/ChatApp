@@ -241,7 +241,7 @@ All routes start with `/api`. Every route except signup, login and logout needs 
 Everything deploys from `main`.
 
 - **Frontend (Vercel):** root directory `frontend`. `vercel.json` forwards `/api/*` to the Render backend and sends every other path to `index.html`. Set `VITE_API_URL` to the Render URL.
-- **Backend (Render):** root directory `backend`, Node 22, start command `pnpm start`. Set the required variables from the table above.
+- **Backend (Render):** root directory `backend`, Node 22, build command `corepack enable && pnpm install --frozen-lockfile`, start command `pnpm start`, auto-deploy on commit. Set the required variables from the table above.
 - **Keep-alive (GitHub Actions):** `.github/workflows/keep-alive.yml` calls `/healthz` every 10 minutes so the free Render instance doesn't fall asleep. GitHub may start scheduled runs a few minutes late, and it turns scheduled workflows off after 60 days without commits; turn it back on from the Actions tab. It can also be run by hand from there.
 
 ## License
