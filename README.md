@@ -246,4 +246,4 @@ Everything deploys from `main`.
 
 ## License
 
-MIT.
+MIT. See [LICENSE](./LICENSE).
