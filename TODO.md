@@ -17,9 +17,9 @@ otherwise.
         after the backend and end-to-end tests pass
   - [x] Component tests for the login and sign-up pages (Testing Library)
   - [x] End-to-end Playwright run: two browsers sign up and chat live
-- [ ] **Docker setup for local work**
-  - [ ] Dockerfile for the backend
-  - [ ] docker-compose with backend, frontend and MongoDB, so the app runs
+- [x] **Docker setup for local work**
+  - [x] Dockerfile for the backend
+  - [x] docker-compose with backend, frontend and MongoDB, so the app runs
         with one command
 - [ ] **Measure the IndexedDB cache speed-up**
   - [ ] Time "open chat until messages show" with and without the cache

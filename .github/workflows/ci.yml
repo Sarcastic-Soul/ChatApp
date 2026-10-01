@@ -150,6 +150,14 @@ jobs:
             frontend/test-results
           retention-days: 7
 
+  docker:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker compose build
+
   # Render redeploys through its deploy hook, only after the backend tests
   # pass and only when something under backend/ changed. The hook URL is a
   # secret: anyone who has it can trigger a deploy.

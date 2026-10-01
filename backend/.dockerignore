@@ -1,0 +1,9 @@
+node_modules
+coverage
+tests
+scripts
+vitest.config.js
+.env
+.env.*
+Dockerfile
+.dockerignore

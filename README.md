@@ -102,7 +102,7 @@ d2 docs/architecture.d2 docs/architecture.svg
 | Backend | Node.js 22, Express 5, Socket.io 4, Mongoose 9, zod 4, JWT, bcrypt, helmet, `express-rate-limit`, `leo-profanity` |
 | Services | MongoDB Atlas, Cloudinary, Groq, Google STUN |
 | Hosting | Vercel (frontend and `/api` proxy), Render (API and sockets), GitHub Actions (keep-alive ping) |
-| Tooling | pnpm, Vitest, supertest, mongodb-memory-server, ESLint 10 (flat config), GitHub Actions CI, D2 |
+| Tooling | Docker Compose, pnpm, Vitest, supertest, mongodb-memory-server, ESLint 10 (flat config), GitHub Actions CI, D2 |
 
 ## Project structure
 
@@ -124,10 +124,12 @@ ChatApp/
 │   ├── scripts/          # e2e-server.js: the server on an in-memory MongoDB
 │   ├── tests/            # Vitest API and socket tests
 │   ├── app.js            # Express app with every route attached
+│   ├── Dockerfile        # Production image
 │   ├── seed.js           # Demo data
 │   └── server.js         # Entry point, starts the server
 ├── docs/
 │   └── architecture.d2   # Architecture diagram source
+├── docker-compose.yml    # MongoDB, backend and frontend together
 └── frontend/
     ├── e2e/              # Playwright end-to-end tests
     ├── src/
@@ -137,12 +139,31 @@ ChatApp/
     │   ├── pages/        # Landing, login, sign-up, chat, profile and group pages
     │   ├── utils/        # IndexedDB cache and formatters
     │   └── zustand/      # Global stores
-    └── vercel.json       # /api proxy and SPA fallback
+    ├── Dockerfile        # Build, then serve with nginx
+    ├── nginx.conf        # /api proxy and SPA fallback for Docker
+    └── vercel.json       # /api proxy and SPA fallback on Vercel
 ```
 
 ## Running locally
 
-**You need:** Node.js 22, pnpm (`npm i -g pnpm`), and a MongoDB database (Atlas, or local with `docker run -d -p 27017:27017 mongo:7`).
+### With Docker
+
+The quickest way: one command starts MongoDB, the backend and the built frontend behind nginx. You need Docker with Compose.
+
+```bash
+git clone https://github.com/Sarcastic-Soul/ChatApp.git
+cd ChatApp
+docker compose up --build -d
+docker compose exec backend node seed.js   # demo users, password123
+```
+
+Open http://localhost:8080 and log in as `alice`. The compose file sets local-only secrets, so it runs with no setup. Uploads and magic reply need real keys: put `CLOUDINARY_*` and `GROQ_API_KEY` in a `.env` file next to `docker-compose.yml`. `docker compose down -v` stops everything and deletes the database.
+
+nginx forwards `/api` to the backend the same way `vercel.json` does in production, and the browser opens the socket to `localhost:5000` directly.
+
+### Without Docker
+
+**You need:** Node.js 22, pnpm (`npm i -g pnpm`), and a MongoDB database (Atlas, or local with `docker run -d -p 27017:27017 mongo:8.2`).
 
 ```bash
 git clone https://github.com/Sarcastic-Soul/ChatApp.git
