@@ -12,6 +12,12 @@ import { notifications } from "@mantine/notifications";
 
 export const CallContext = createContext();
 
+const FALLBACK_ICE_SERVERS = [
+    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+];
+// The backend hands out TURN credentials that stay valid for at least 12 hours
+const ICE_SERVERS_MAX_AGE = 6 * 60 * 60 * 1000;
+
 export const useCallContext = () => {
     return useContext(CallContext);
 };
@@ -42,11 +48,33 @@ export const CallContextProvider = ({ children }) => {
     const callStartTimeRef = useRef(null);
     const endCallCleanupRef = useRef();
 
-    const configuration = {
-        iceServers: [
-            { urls: "stun:stun.l.google.com:19302" },
-            { urls: "stun:stun1.l.google.com:19302" },
-        ],
+    // ICE servers come from the backend, which adds TURN relay credentials
+    // when a provider is set up. They are fetched ahead of time so starting
+    // or answering a call doesn't wait on a request.
+    const iceServersRef = useRef({ servers: FALLBACK_ICE_SERVERS, fetchedAt: 0 });
+
+    const refreshIceServers = async () => {
+        try {
+            const res = await fetch("/api/calls/ice-servers", { credentials: "include" });
+            if (!res.ok) return;
+            const { iceServers } = await res.json();
+            if (Array.isArray(iceServers) && iceServers.length) {
+                iceServersRef.current = { servers: iceServers, fetchedAt: Date.now() };
+            }
+        } catch {
+            // Keep the STUN servers
+        }
+    };
+
+    useEffect(() => {
+        if (authUser) refreshIceServers();
+    }, [authUser]);
+
+    const getConfiguration = async () => {
+        if (Date.now() - iceServersRef.current.fetchedAt > ICE_SERVERS_MAX_AGE) {
+            await refreshIceServers();
+        }
+        return { iceServers: iceServersRef.current.servers };
     };
 
     useEffect(() => {
@@ -242,7 +270,7 @@ export const CallContextProvider = ({ children }) => {
 
         setIsCalling(true);
         setCallEnded(false);
-        const peer = new RTCPeerConnection(configuration);
+        const peer = new RTCPeerConnection(await getConfiguration());
         connectionRef.current = peer;
 
         stream.getTracks().forEach((track) => peer.addTrack(track, stream));
@@ -283,7 +311,7 @@ export const CallContextProvider = ({ children }) => {
         const stream = await setupMedia();
         if (!stream) return;
 
-        const peer = new RTCPeerConnection(configuration);
+        const peer = new RTCPeerConnection(await getConfiguration());
         connectionRef.current = peer;
 
         stream.getTracks().forEach((track) => peer.addTrack(track, stream));

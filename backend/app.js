@@ -9,6 +9,7 @@ import messageRoutes from "./routes/message.routes.js";
 import userRoutes from "./routes/user.routes.js";
 import groupRoutes from "./routes/group.routes.js";
 import cloudinaryRoutes from "./routes/cloudinary.routes.js";
+import callRoutes from "./routes/call.routes.js";
 
 import { app, io, server } from "./socket/socket.js";
 import { allowedOrigins } from "./config/allowedOrigins.js";
@@ -35,6 +36,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/cloudinary", cloudinaryRoutes);
+app.use("/api/calls", callRoutes);
 
 // Health check, also pinged to keep Render awake
 app.get("/healthz", (req, res) => {

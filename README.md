@@ -88,7 +88,7 @@ d2 docs/architecture.d2 docs/architecture.svg
 
 **Input checks.** Every route that takes input runs its params, query and body through a [zod](https://zod.dev) schema (`backend/validation/schemas.js`). Bad input gets a `400` with a readable message, and unknown fields are dropped before they reach the controller. Socket event payloads are checked too, and malformed ones are ignored.
 
-**Calls.** The two browsers swap WebRTC offers, answers and ICE candidates through the socket server, then send audio and video straight to each other. Google's STUN servers help each browser find its public address.
+**Calls.** The two browsers swap WebRTC offers, answers and ICE candidates through the socket server, then send audio and video straight to each other. Google's STUN servers help each browser find its public address. When both people sit behind strict NATs, such as mobile data or office Wi-Fi, a direct path often can't be found, so the backend also hands out short-lived TURN relay credentials from Cloudflare or Metered (`GET /api/calls/ice-servers`). The provider key stays on the server, and the browser only sees credentials that expire within a day.
 
 **Magic reply.** The backend sends the last 10 messages (500 characters each, at most) to Groq's OpenAI-compatible chat API using `openai/gpt-oss-120b`. One draft uses a few hundred tokens, which keeps it far below the free tier's 8K tokens a minute. If Groq rate limits the request, the user is asked to try again in a minute.
 
@@ -100,7 +100,7 @@ d2 docs/architecture.d2 docs/architecture.svg
 | --- | --- |
 | Frontend | React 19, Vite 8, Mantine 9, React Router 7, Zustand 5, Motion, Phosphor Icons, Socket.io client, `idb` |
 | Backend | Node.js 22, Express 5, Socket.io 4, Mongoose 9, zod 4, JWT, bcrypt, helmet, `express-rate-limit`, `leo-profanity` |
-| Services | MongoDB Atlas, Cloudinary, Groq, Google STUN |
+| Services | MongoDB Atlas, Cloudinary, Groq, Google STUN, Cloudflare TURN |
 | Hosting | Vercel (frontend and `/api` proxy), Render (API and sockets), GitHub Actions (keep-alive ping) |
 | Tooling | Docker Compose, pnpm, Vitest, supertest, mongodb-memory-server, ESLint 10 (flat config), GitHub Actions CI, D2 |
 
@@ -217,7 +217,7 @@ cd frontend && pnpm exec playwright install chromium && pnpm run test:e2e
 
 The backend tests need no setup and never touch a real database. They start an in-memory MongoDB with `mongodb-memory-server` (the binary, about 120 MB, downloads on the first run), give each test file its own database, and use fake secrets from `backend/vitest.config.js`.
 
-- **Backend (110 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response. Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status and that bad payloads are dropped.
+- **Backend (116 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response, and TURN credentials from mocked Cloudflare and Metered responses. Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status and that bad payloads are dropped.
 - **Frontend (41 tests):** the login and sign-up pages with Testing Library on jsdom (form submit, server errors, client checks, the saved session check), the Zustand conversation store, the IndexedDB message cache (on `fake-indexeddb`) and the time formatters.
 - **End to end (Playwright):** starts the real backend on an in-memory MongoDB and the Vite app, then two browsers sign up, start a chat and swap messages live over the socket.
 
@@ -237,6 +237,8 @@ The backend reads `backend/.env` with Node's built-in `--env-file-if-exists`, so
 | `CLOUDINARY_API_SECRET` | Yes | Cloudinary API secret, used to sign uploads |
 | `GROQ_API_KEY` | For magic reply | Key from [console.groq.com/keys](https://console.groq.com/keys) |
 | `GROQ_MODEL` | No | Groq model ID. Defaults to `openai/gpt-oss-120b` |
+| `CLOUDFLARE_TURN_KEY_ID`, `CLOUDFLARE_TURN_API_TOKEN` | No | Cloudflare Realtime TURN key. Lets calls connect through strict NATs (mobile data, office Wi-Fi) |
+| `METERED_DOMAIN`, `METERED_API_KEY` | No | Metered TURN instead of Cloudflare, e.g. `yourapp.metered.live`. With neither set, calls use STUN only |
 | `PORT` | No | Defaults to `5000` |
 | `NODE_ENV` | No | Set to `development` locally, so the login cookie works over plain HTTP |
 | `CLIENT_ORIGINS` | No | Extra CORS origins, comma-separated. The Vercel URL and `localhost:3000` are allowed already |

@@ -29,8 +29,9 @@ otherwise.
 ## Later
 
 - [ ] **TURN server for calls** (needs a free account: Cloudflare or Metered)
-  - [ ] Fetch short-lived TURN credentials from the backend
-  - [ ] Add them to the `RTCPeerConnection` ICE servers next to Google STUN
+  - [x] Fetch short-lived TURN credentials from the backend
+  - [x] Add them to the `RTCPeerConnection` ICE servers next to Google STUN
+  - [ ] Create the TURN key and set its variables on Render
   - Fixes calls that connect with no audio or video on mobile data and
     office networks
 - [ ] **Web Push notifications**
