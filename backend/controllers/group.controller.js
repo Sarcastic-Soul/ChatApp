@@ -1,7 +1,7 @@
 import Conversation from "../models/conversation.model.js";
 import Message from "../models/message.model.js";
 import { encryptText } from "../utils/encryption.js";
-import { io } from "../socket/socket.js";
+import { io, addUserToRoom, removeUserFromRoom } from "../socket/socket.js";
 
 
 const emitSystemMessage = async (groupId, senderId, text) => {
@@ -96,6 +96,7 @@ export const createGroup = async (req, res) => {
         });
 
         await newGroup.save();
+        allParticipants.forEach((pId) => addUserToRoom(pId, newGroup._id));
         await emitSystemMessage(newGroup._id, userId, `created group "${name}"`);
         res.status(201).json(newGroup);
     } catch (error) {
@@ -148,6 +149,7 @@ export const deleteGroup = async (req, res) => {
                 .json({ error: "Only admins can delete the group." });
 
         await Conversation.findByIdAndDelete(groupId);
+        io.in(groupId.toString()).socketsLeave(groupId.toString());
         res.status(200).json({ message: "Group deleted successfully" });
     } catch (error) {
         console.error("Error in deleteGroup: ", error.message);
@@ -222,6 +224,7 @@ export const addParticipant = async (req, res) => {
 
         group.participants.push(userIdToAdd);
         await group.save();
+        addUserToRoom(userIdToAdd, group._id);
         await emitSystemMessage(group._id, userId, `added ${userToAdd.fullName} to the group`);
         res.status(200).json(group);
     } catch (error) {
@@ -272,6 +275,7 @@ export const removeParticipant = async (req, res) => {
         const isLeaving = userId.toString() === userIdToRemove.toString();
         const text = isLeaving ? `left the group` : `removed ${removedUser.fullName}`;
         await emitSystemMessage(group._id, userId, text);
+        removeUserFromRoom(userIdToRemove, group._id);
         res.status(200).json(group);
     } catch (error) {
         console.error("Error in removeParticipant: ", error.message);

@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
 import generateTokenAndSetCookie from "../utils/generateToken.js";
 
@@ -96,4 +97,21 @@ export const logout = (req, res) => {
         console.error("Error in logout controller", error.message);
         res.status(500).json({ error: "Internal Server Error" });
     }
+};
+
+// Returns the logged-in user, so the client can check its session is valid
+export const getMe = (req, res) => {
+    const { _id, fullName, username, profilePic, isPublic } = req.user;
+    res.status(200).json({ _id, fullName, username, profilePic, isPublic });
+};
+
+// Short-lived token the client sends when opening a socket. The socket server
+// is on another domain from the site, so it cannot read the auth cookie.
+export const getSocketToken = (req, res) => {
+    const token = jwt.sign(
+        { userId: req.user._id, scope: "socket" },
+        process.env.JWT_SECRET,
+        { expiresIn: "5m" },
+    );
+    res.status(200).json({ token });
 };
