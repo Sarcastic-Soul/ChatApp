@@ -1,10 +1,13 @@
 import crypto from "crypto";
-import dotenv from "dotenv";
 
-dotenv.config();
-
-// Ensure we have a consistent 32-byte key for AES-256 by hashing the environment variable
-// We use a fallback so your server doesn't crash, but you should add ENCRYPTION_KEY to your .env file
+// Hash the key so AES-256 always gets 32 bytes.
+// The fallback only exists so messages saved under it can still be read.
+// Set ENCRYPTION_KEY in every environment.
+if (!process.env.ENCRYPTION_KEY) {
+    console.warn(
+        "ENCRYPTION_KEY is not set. Messages are encrypted with the public fallback key.",
+    );
+}
 const keyString =
     process.env.ENCRYPTION_KEY || "default_mern_chat_secret_key_2024";
 const keyBuffer = crypto

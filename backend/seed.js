@@ -1,13 +1,10 @@
 import mongoose from "mongoose";
-import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import User from "./models/user.model.js";
 import Conversation from "./models/conversation.model.js";
 import Message from "./models/message.model.js";
 import { encryptText } from "./utils/encryption.js";
 
-import path from "path";
-dotenv.config({ path: "backend/.env" });
 
 const seedDatabase = async () => {
     try {

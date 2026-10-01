@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import Conversation from "../models/conversation.model.js";
 import Message from "../models/message.model.js";
 import User from "../models/user.model.js";
@@ -288,10 +288,7 @@ export const generateMagicReply = async (req, res) => {
                 .json({ error: "Gemini API key is missing." });
         }
 
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.5-flash",
-        });
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
         const conversationContext = messages
             .map((msg) => `${msg.sender}: ${msg.text}`)
@@ -314,8 +311,11 @@ Instructions:
             prompt += `4. No specific tone was requested. Analyze the conversation history and MATCH the existing tone, formality, and style of the chat.`;
         }
 
-        const result = await model.generateContent(prompt);
-        let replyText = result.response.text().trim();
+        const result = await ai.models.generateContent({
+            model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+            contents: prompt,
+        });
+        let replyText = (result.text || "").trim();
 
         replyText = replyText.replace(/^["']|["']$/g, "");
 
