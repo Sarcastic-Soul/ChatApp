@@ -1,7 +1,3 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 body,
 html,
 #root {
@@ -15,12 +11,30 @@ body {
     color: var(--mantine-color-text);
 }
 
+/* New incoming message nudge */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+}
 
-@keyframes hue {
-  from {
-    filter: hue-rotate(0deg);
-  }
-  to {
-    filter: hue-rotate(360deg);
-  }
+.shake {
+    animation: shake 0.3s ease-in-out 2;
+}
+
+/* Reaction pill pop when a reaction is added */
+@keyframes bounce-reaction {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.25); }
+}
+
+.animate-bounce-reaction {
+    animation: bounce-reaction 0.35s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shake,
+    .animate-bounce-reaction {
+        animation: none;
+    }
 }
