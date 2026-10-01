@@ -16,7 +16,7 @@ yarn-error.log*
 node_modules/.vite/
 
 # Production build outputs
-/dist/
+dist/
 /build/
 
 # Environment variables
