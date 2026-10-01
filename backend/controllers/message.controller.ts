@@ -1,0 +1,550 @@
+import type { Request, Response } from "express";
+import type { ValidatedRequest } from "../middleware/validate.ts";
+import type {
+    conversationIdSchema,
+    editMessageSchema,
+    getMessagesSchema,
+    magicReplySchema,
+    messageIdSchema,
+    reactionSchema,
+    searchMessagesSchema,
+    sendMessageSchema,
+} from "../validation/schemas.ts";
+import { errorMessage } from "../utils/errorMessage.ts";
+import Conversation from "../models/conversation.model.ts";
+import type { QueryFilter } from "mongoose";
+import Message, { type MessageFields, type QuotedMessage } from "../models/message.model.ts";
+import User, { type PublicUser } from "../models/user.model.ts";
+import { getReceiverSocketId, io } from "../socket/socket.ts";
+import { encryptText, decryptText } from "../utils/encryption.ts";
+import { cleanProfanity } from "../utils/profanityFilter.ts";
+import { messageNotification, sendPushToUsers } from "../utils/push.ts";
+import { matchesQuery, queryTokensFor, searchTokensFor } from "../utils/searchIndex.ts";
+
+// Messages go out with the sender's profile and the message they reply to
+const WITH_SENDER_AND_REPLY = [
+    { path: "senderId", select: "fullName profilePic username isPublic" },
+    { path: "replyTo", select: "message mediaType mediaUrl senderId" },
+];
+type WithSenderAndReply = { senderId: PublicUser; replyTo: QuotedMessage | null };
+
+export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema>, res: Response) => {
+    try {
+        // Checked by sendMessageSchema. System messages are only made by the server.
+        const { message, mediaUrl, mediaType, replyTo, isCall, isForwarded } = req.body;
+        const { id: conversationIdOrUserId } = req.params;
+        const senderId = req.user._id;
+
+        // The 1-on-1 lookup below would otherwise match any of the sender's chats
+        if (conversationIdOrUserId === senderId.toString()) {
+            return res.status(400).json({ error: "You can't message yourself." });
+        }
+
+        let isNewConversation = false;
+        let conversation = await Conversation.findById(conversationIdOrUserId);
+
+        if (!conversation) {
+            conversation = await Conversation.findOne({
+                isGroupChat: false,
+                participants: { $all: [senderId, conversationIdOrUserId] },
+            });
+
+            if (!conversation) {
+                const receiver = await User.findById(conversationIdOrUserId);
+                if (!receiver) {
+                    return res.status(404).json({ error: "User not found" });
+                }
+                if (receiver.isPublic === false) {
+                    return res
+                        .status(403)
+                        .json({ error: "You cannot message a private user." });
+                }
+
+                conversation = await Conversation.create({
+                    participants: [senderId, conversationIdOrUserId],
+                });
+                isNewConversation = true;
+            }
+        }
+
+        if (!conversation.participants.includes(senderId)) {
+            return res.status(403).json({
+                error: "You are not a participant in this conversation.",
+            });
+        }
+
+        // Replies show the quoted text, so it must come from this chat
+        if (replyTo && !conversation.messages.some((id) => id.equals(replyTo))) {
+            return res
+                .status(400)
+                .json({ error: "You can only reply to messages in this chat." });
+        }
+
+        const cleanedText = message ? cleanProfanity(message) : "";
+
+        const newMessage = new Message({
+            senderId,
+            receiverId: conversation._id,
+            message: cleanedText ? encryptText(cleanedText) : "",
+            searchTokens: cleanedText ? searchTokensFor(cleanedText) : undefined,
+            mediaUrl: mediaUrl || null,
+            mediaType,
+            replyTo: replyTo || null,
+            isCall,
+            isForwarded,
+        });
+
+        conversation.messages.push(newMessage._id);
+
+        await Promise.all([conversation.save(), newMessage.save()]);
+
+        const populatedMessage = await newMessage.populate<WithSenderAndReply>(WITH_SENDER_AND_REPLY);
+
+        // Decrypt message before sending to sockets/frontend
+        if (populatedMessage.message) {
+            populatedMessage.message = decryptText(populatedMessage.message);
+        }
+        if (populatedMessage.replyTo && populatedMessage.replyTo.message) {
+            populatedMessage.replyTo.message = decryptText(
+                populatedMessage.replyTo.message,
+            );
+        }
+
+        if (conversation.isGroupChat) {
+            io.to(conversation._id.toString()).emit(
+                "newMessage",
+                populatedMessage,
+            );
+        } else {
+            const receiverId = conversation.participants.find(
+                (p) => p.toString() !== senderId.toString(),
+            );
+            const receiverSocketId = getReceiverSocketId(receiverId);
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit("newMessage", populatedMessage);
+            }
+        }
+
+        // People with no open tab get a push notification instead
+        const offlineIds = conversation.participants.filter(
+            (p) => !p.equals(senderId) && !getReceiverSocketId(p),
+        );
+        if (offlineIds.length) {
+            const payload = messageNotification({
+                conversation,
+                message: populatedMessage,
+                sender: populatedMessage.senderId,
+            });
+            sendPushToUsers(offlineIds, payload).catch((error) =>
+                console.error("Error sending push notifications:", errorMessage(error)),
+            );
+        }
+
+        if (isNewConversation) {
+            const populatedConv = await conversation.populate(
+                "participants",
+                "fullName profilePic username isPublic",
+            );
+            return res.status(201).json({
+                newMessage: populatedMessage,
+                newConversation: populatedConv,
+            });
+        }
+
+        res.status(201).json({ newMessage: populatedMessage });
+    } catch (error) {
+        console.error("Error in sendMessage controller: ", errorMessage(error));
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+export const getMessages = async (req: ValidatedRequest<typeof getMessagesSchema>, res: Response) => {
+    try {
+        const { id: conversationId } = req.params;
+        const { before, limit } = req.query;
+        const senderId = req.user._id;
+
+        const conversation = await Conversation.findById(conversationId);
+
+        if (!conversation || !conversation.participants.includes(senderId)) {
+            return res.status(404).json({
+                error: "Conversation not found or you are not a member.",
+            });
+        }
+
+        const messageQuery: QueryFilter<MessageFields> = { _id: { $in: conversation.messages } };
+
+        if (before) {
+            const beforeMsg = await Message.findById(before);
+            if (beforeMsg) {
+                messageQuery.createdAt = { $lt: beforeMsg.createdAt };
+            }
+        }
+
+        const messages = await Message.find(messageQuery)
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .populate<{ replyTo: QuotedMessage | null }>({
+                path: "replyTo",
+                select: "message mediaType mediaUrl senderId",
+            })
+            .lean();
+
+        // Decrypt all messages before sending to client
+        const decryptedMessages = messages.map((msg) => {
+            const decryptedMsg = {
+                ...msg,
+                message: msg.message ? decryptText(msg.message) : "",
+            };
+            if (decryptedMsg.replyTo && decryptedMsg.replyTo.message) {
+                decryptedMsg.replyTo.message = decryptText(
+                    decryptedMsg.replyTo.message,
+                );
+            }
+            return decryptedMsg;
+        });
+
+        res.status(200).json(decryptedMessages);
+    } catch (error) {
+        console.error("Error in getMessages controller:", errorMessage(error));
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+export const markMessagesAsRead = async (req: ValidatedRequest<typeof conversationIdSchema>, res: Response) => {
+    try {
+        const { id: conversationId } = req.params;
+        const userId = req.user._id;
+
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation || !conversation.participants.includes(userId)) {
+            return res.status(404).json({
+                error: "Conversation not found or you are not a member.",
+            });
+        }
+
+        await Message.updateMany(
+            {
+                receiverId: conversationId,
+                senderId: { $ne: userId },
+                status: { $ne: "read" },
+            },
+            {
+                $set: { status: "read" },
+            },
+        );
+
+        if (conversation.isGroupChat) {
+            io.to(conversationId).emit("messagesRead", {
+                conversationId,
+                userId,
+            });
+        } else {
+            const otherParticipantId = conversation.participants.find(
+                (p) => p.toString() !== userId.toString(),
+            );
+            const senderSocketId = getReceiverSocketId(otherParticipantId);
+            if (senderSocketId) {
+                io.to(senderSocketId).emit("messagesRead", {
+                    conversationId,
+                    userId,
+                });
+            }
+        }
+
+        res.status(200).json({ message: "Messages marked as read" });
+    } catch (error) {
+        console.error("Error in markMessagesAsRead controller:", errorMessage(error));
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+export const addReaction = async (req: ValidatedRequest<typeof reactionSchema>, res: Response) => {
+    try {
+        const { messageId } = req.params;
+        const { reaction } = req.body;
+        const userId = req.user._id;
+
+        const [message, conversation] = await Promise.all([
+            Message.findById(messageId),
+            Conversation.findOne({ messages: messageId }),
+        ]);
+
+        // Treat messages in chats the user is not part of as missing
+        if (!message || !conversation?.participants.includes(userId)) {
+            return res.status(404).json({ error: "Message not found" });
+        }
+
+        const existingReactionIndex = message.reactions.findIndex(
+            (r) =>
+                r.userId.toString() === userId.toString() &&
+                r.reaction === reaction,
+        );
+
+        if (existingReactionIndex !== -1) {
+            message.reactions.splice(existingReactionIndex, 1);
+        } else {
+            const existingAnyReactionIndex = message.reactions.findIndex(
+                (r) => r.userId.toString() === userId.toString(),
+            );
+            if (existingAnyReactionIndex !== -1) {
+                message.reactions.splice(existingAnyReactionIndex, 1);
+            }
+            message.reactions.push({ userId, reaction });
+        }
+
+        await message.save();
+
+        const messageObj = message.toObject();
+        if (messageObj.message) {
+            messageObj.message = decryptText(messageObj.message);
+        }
+
+        if (conversation.isGroupChat) {
+            io.to(conversation._id.toString()).emit("messageReaction", messageObj);
+        } else {
+            const receiverId = conversation.participants.find(
+                (p) => p.toString() !== userId.toString(),
+            );
+            const receiverSocketId = getReceiverSocketId(receiverId);
+            if (receiverSocketId) {
+                io.to(receiverSocketId).emit("messageReaction", messageObj);
+            }
+
+            const senderSocketId = getReceiverSocketId(userId);
+            if (senderSocketId && senderSocketId !== receiverSocketId) {
+                io.to(senderSocketId).emit("messageReaction", messageObj);
+            }
+        }
+
+        res.status(200).json(messageObj);
+    } catch (error) {
+        console.error("Error in addReaction controller: ", errorMessage(error));
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+// Groq's free tier allows 8K tokens a minute on this model, and one draft
+// uses a few hundred, so the limit is not a problem at this app's scale.
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
+
+export const generateMagicReply = async (req: ValidatedRequest<typeof magicReplySchema>, res: Response) => {
+    try {
+        const { messages, requestedTone } = req.body;
+
+        if (!process.env.GROQ_API_KEY) {
+            return res.status(500).json({ error: "Groq API key is missing." });
+        }
+        // magicReplySchema keeps only the last 10 messages, 500 characters
+        // each, so a single draft stays well under the token limit
+        const conversationContext = messages
+            .map((msg) => `${msg.sender}: ${msg.text}`)
+            .join("\n");
+
+        const toneRule =
+            requestedTone !== "Auto"
+                ? `Use this tone: ${requestedTone}. Follow it strictly.`
+                : "Match the tone, formality and style of the conversation.";
+
+        const response = await fetch(GROQ_URL, {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                model: GROQ_MODEL,
+                messages: [
+                    {
+                        role: "system",
+                        content: `You help a user write their next message in a chat app. The user is "Me". Write only the next message "Me" should send: short, natural and fitting the conversation. Return the exact text to send, with no quotes, labels or extra commentary. ${toneRule}`,
+                    },
+                    { role: "user", content: conversationContext },
+                ],
+                reasoning_effort: "low",
+                include_reasoning: false,
+                max_completion_tokens: 512,
+                temperature: 0.7,
+            }),
+            signal: AbortSignal.timeout(20000),
+        });
+
+        if (!response.ok) {
+            const detail = await response.text();
+            console.error("Groq error:", response.status, detail);
+            if (response.status === 429) {
+                return res
+                    .status(429)
+                    .json({ error: "Too many AI requests right now. Try again in a minute." });
+            }
+            return res.status(502).json({ error: "Failed to generate reply" });
+        }
+
+        const data = (await response.json()) as {
+            choices?: { message?: { content?: string } }[];
+        };
+        const replyText = (data.choices?.[0]?.message?.content || "")
+            .trim()
+            .replace(/^["']|["']$/g, "");
+
+        if (!replyText) {
+            return res.status(502).json({ error: "Failed to generate reply" });
+        }
+
+        res.json({ reply: replyText });
+    } catch (error) {
+        console.error("Error generating magic reply:", error);
+        res.status(500).json({ error: "Failed to generate reply" });
+    }
+};
+
+export const editMessage = async (req: ValidatedRequest<typeof editMessageSchema>, res: Response) => {
+    try {
+        const { messageId } = req.params;
+        const { message: newText } = req.body;
+        const userId = req.user._id;
+
+        const message = await Message.findById(messageId);
+
+        if (!message) {
+            return res.status(404).json({ error: "Message not found" });
+        }
+
+        if (message.senderId.toString() !== userId.toString()) {
+            return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        const cleanedText = newText ? cleanProfanity(newText) : "";
+        message.message = encryptText(cleanedText);
+        message.searchTokens = searchTokensFor(cleanedText);
+        message.isEdited = true;
+        await message.save();
+
+        const messageObj = await message.populate<WithSenderAndReply>(WITH_SENDER_AND_REPLY);
+
+        const populatedObj = messageObj.toObject();
+        delete populatedObj.searchTokens;
+        if (populatedObj.message) {
+            populatedObj.message = decryptText(populatedObj.message);
+        }
+        if (populatedObj.replyTo && populatedObj.replyTo.message) {
+            populatedObj.replyTo.message = decryptText(populatedObj.replyTo.message);
+        }
+
+        const conversation = await Conversation.findOne({
+            messages: messageId,
+        });
+
+        if (conversation) {
+            if (conversation.isGroupChat) {
+                io.to(conversation._id.toString()).emit("messageEdited", populatedObj);
+            } else {
+                const receiverId = conversation.participants.find(
+                    (p) => p.toString() !== userId.toString(),
+                );
+                const receiverSocketId = getReceiverSocketId(receiverId);
+                if (receiverSocketId) {
+                    io.to(receiverSocketId).emit("messageEdited", populatedObj);
+                }
+            }
+        }
+
+        res.status(200).json(populatedObj);
+    } catch (error) {
+        console.error("Error in editMessage controller: ", errorMessage(error));
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+export const deleteMessage = async (req: ValidatedRequest<typeof messageIdSchema>, res: Response) => {
+    try {
+        const { messageId } = req.params;
+        const userId = req.user._id;
+
+        const message = await Message.findById(messageId);
+
+        if (!message) {
+            return res.status(404).json({ error: "Message not found" });
+        }
+
+        if (message.senderId.toString() !== userId.toString()) {
+            return res.status(403).json({ error: "Unauthorized" });
+        }
+
+        message.isDeleted = true;
+        message.message = encryptText("This message was deleted");
+        message.searchTokens = undefined;
+        await message.save();
+
+        const messageObj = await message.populate<WithSenderAndReply>(WITH_SENDER_AND_REPLY);
+
+        const populatedObj = messageObj.toObject();
+        populatedObj.message = "This message was deleted";
+        if (populatedObj.replyTo && populatedObj.replyTo.message) {
+            populatedObj.replyTo.message = decryptText(populatedObj.replyTo.message);
+        }
+
+        const conversation = await Conversation.findOne({
+            messages: messageId,
+        });
+
+        if (conversation) {
+            if (conversation.isGroupChat) {
+                io.to(conversation._id.toString()).emit("messageDeleted", populatedObj);
+            } else {
+                const receiverId = conversation.participants.find(
+                    (p) => p.toString() !== userId.toString(),
+                );
+                const receiverSocketId = getReceiverSocketId(receiverId);
+                if (receiverSocketId) {
+                    io.to(receiverSocketId).emit("messageDeleted", populatedObj);
+                }
+            }
+        }
+
+        res.status(200).json(populatedObj);
+    } catch (error) {
+        console.error("Error in deleteMessage controller: ", errorMessage(error));
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+// Searches the text of every chat the user is in, newest first. Works on
+// the blind index, then decrypts the hits and checks them again.
+export const searchMessages = async (req: ValidatedRequest<typeof searchMessagesSchema>, res: Response) => {
+    try {
+        const { q, limit } = req.query;
+        const tokens = queryTokensFor(q);
+        if (tokens.length === 0) return res.status(200).json([]);
+
+        const conversations = await Conversation.find({ participants: req.user._id }).select("_id").lean();
+
+        const candidates = await Message.find({
+            receiverId: { $in: conversations.map((c) => c._id) },
+            searchTokens: { $all: tokens },
+            isDeleted: { $ne: true },
+        })
+            .sort({ createdAt: -1 })
+            .limit(limit * 2)
+            .populate<{ senderId: PublicUser }>("senderId", "fullName profilePic username")
+            .lean();
+
+        const results = candidates
+            .map((m) => ({ ...m, message: decryptText(m.message) }))
+            .filter((m) => matchesQuery(m.message, q))
+            .slice(0, limit)
+            .map((m) => ({
+                _id: m._id,
+                conversationId: m.receiverId,
+                message: m.message,
+                createdAt: m.createdAt,
+                sender: m.senderId,
+            }));
+
+        res.status(200).json(results);
+    } catch (error) {
+        console.error("Error in searchMessages controller: ", errorMessage(error));
+        res.status(500).json({ error: "Internal server error" });
+    }
+};

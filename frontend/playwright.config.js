@@ -22,7 +22,7 @@ export default defineConfig({
     },
     webServer: [
         {
-            command: "node ../backend/scripts/e2e-server.js",
+            command: "node ../backend/scripts/e2e-server.ts",
             url: `http://${HOST}:${API_PORT}/healthz`,
             timeout: 120_000,
             stdout: "ignore",

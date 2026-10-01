@@ -14,4 +14,4 @@ USER node
 EXPOSE 5000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s \
     CMD wget -qO- "http://127.0.0.1:${PORT:-5000}/healthz" > /dev/null || exit 1
-CMD ["node", "server.js"]
+CMD ["node", "server.ts"]

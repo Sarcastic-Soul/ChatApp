@@ -2,7 +2,7 @@
 # built frontend behind nginx. Open http://localhost:8080.
 #
 #   docker compose up --build
-#   docker compose exec backend node seed.js   # demo users, password123
+#   docker compose exec backend node seed.ts   # demo users, password123
 #
 # Secrets have local-only defaults. To use real Cloudinary or Groq keys, put
 # them in a .env file next to this one (it is gitignored).

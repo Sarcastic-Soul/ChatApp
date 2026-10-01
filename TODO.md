@@ -47,8 +47,9 @@ otherwise.
   - [ ] Run `pnpm run backfill:search` against production so older messages
         can be found
 - [ ] **TypeScript**
-  - [ ] Move the backend first (zod schemas can supply the request types),
-        then the frontend
+  - [x] Move the backend (Node 22 type stripping, no build step; zod
+        schemas supply the request types; `tsc` runs in CI)
+  - [ ] Move the frontend
 - [ ] **Reliable message delivery**
   - [ ] Client-made message IDs, so a retried send never creates a duplicate
   - [ ] Per-chat sequence numbers from the server, so every device shows the

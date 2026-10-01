@@ -90,7 +90,7 @@ d2 docs/architecture.d2 docs/architecture.svg
 
 **Search.** Encrypted text can't go in a MongoDB text index, so each message also gets a blind index: a list of keyed hashes (HMAC-SHA256, with a key derived from `ENCRYPTION_KEY`) of its words and word starts, from 3 to 12 letters (two-letter words are stored whole). "meeting" is stored as the hashes of "mee", "meet", ... "meeting", so typing "meet" finds it. A search hashes the query words the same way, finds messages with every hash in chats the user belongs to, then decrypts the hits and checks them again. Someone with only the database sees hashes, not words, but can tell when two messages share a word; that is the trade-off for searching on the server. Edits update the hashes and deletes clear them. `pnpm run backfill:search` adds hashes to messages saved before search existed.
 
-**Input checks.** Every route that takes input runs its params, query and body through a [zod](https://zod.dev) schema (`backend/validation/schemas.js`). Bad input gets a `400` with a readable message, and unknown fields are dropped before they reach the controller. Socket event payloads are checked too, and malformed ones are ignored.
+**Input checks.** Every route that takes input runs its params, query and body through a [zod](https://zod.dev) schema (`backend/validation/schemas.ts`). Bad input gets a `400` with a readable message, and unknown fields are dropped before they reach the controller. The controllers take their request types from the same schemas (`ValidatedRequest<typeof sendMessageSchema>`), so a field the schema doesn't define is a type error. Socket event payloads are checked too, and malformed ones are ignored.
 
 **Calls.** The two browsers swap WebRTC offers, answers and ICE candidates through the socket server, then send audio and video straight to each other. Google's STUN servers help each browser find its public address. When both people sit behind strict NATs, such as mobile data or office Wi-Fi, a direct path often can't be found, so the backend also hands out short-lived TURN relay credentials from Cloudflare or Metered (`GET /api/calls/ice-servers`). The provider key stays on the server, and the browser only sees credentials that expire within a day.
 
@@ -105,7 +105,7 @@ d2 docs/architecture.d2 docs/architecture.svg
 | Area | Tools |
 | --- | --- |
 | Frontend | React 19, Vite 8, Mantine 9, React Router 7, Zustand 5, Motion, Phosphor Icons, Socket.io client, `idb` |
-| Backend | Node.js 22, Express 5, Socket.io 4, Mongoose 9, zod 4, JWT, bcrypt, helmet, `express-rate-limit`, `leo-profanity` |
+| Backend | Node.js 22, TypeScript (run by Node directly), Express 5, Socket.io 4, Mongoose 9, zod 4, JWT, bcrypt, helmet, `express-rate-limit`, `leo-profanity` |
 | Services | MongoDB Atlas, Cloudinary, Groq, Google STUN, Cloudflare TURN |
 | Hosting | Vercel (frontend and `/api` proxy), Render (API and sockets), GitHub Actions (keep-alive ping) |
 | Tooling | Docker Compose, pnpm, Vitest, supertest, mongodb-memory-server, ESLint 10 (flat config), GitHub Actions CI, D2 |
@@ -118,7 +118,7 @@ ChatApp/
 │   ├── ci.yml            # Lint, tests and build on every push
 │   └── keep-alive.yml    # Pings the backend every 10 minutes
 ├── backend/
-│   ├── config/           # Allowed CORS origins
+│   ├── config/           # Allowed CORS origins, required env variables
 │   ├── controllers/      # Route handlers (auth, messages, groups, users, uploads)
 │   ├── db/               # MongoDB connection
 │   ├── middleware/       # Auth check, rate limit, zod validation
@@ -127,12 +127,14 @@ ChatApp/
 │   ├── socket/           # Socket.io server, rooms and WebRTC signaling
 │   ├── utils/            # Encryption, profanity filter, JWT and Cloudinary helpers
 │   ├── validation/       # zod schemas for requests and socket events
-│   ├── scripts/          # e2e-server.js: the server on an in-memory MongoDB
+│   ├── scripts/          # e2e server on an in-memory MongoDB, search backfill
 │   ├── tests/            # Vitest API and socket tests
-│   ├── app.js            # Express app with every route attached
+│   ├── types/            # Express request type additions (req.user)
+│   ├── app.ts            # Express app with every route attached
 │   ├── Dockerfile        # Production image
-│   ├── seed.js           # Demo data
-│   └── server.js         # Entry point, starts the server
+│   ├── seed.ts           # Demo data
+│   ├── server.ts         # Entry point, starts the server
+│   └── tsconfig.json     # Type checking only; Node runs the .ts files
 ├── docs/
 │   └── architecture.d2   # Architecture diagram source
 ├── docker-compose.yml    # MongoDB, backend and frontend together
@@ -160,7 +162,7 @@ The quickest way: one command starts MongoDB, the backend and the built frontend
 git clone https://github.com/Sarcastic-Soul/ChatApp.git
 cd ChatApp
 docker compose up --build -d
-docker compose exec backend node seed.js   # demo users, password123
+docker compose exec backend node seed.ts   # demo users, password123
 ```
 
 Open http://localhost:8080 and log in as `alice`. The compose file sets local-only secrets, so it runs with no setup. Uploads and magic reply need real keys: put `CLOUDINARY_*` and `GROQ_API_KEY` in a `.env` file next to `docker-compose.yml`. `docker compose down -v` stops everything and deletes the database.
@@ -206,6 +208,7 @@ In development, Vite forwards `/api` to `VITE_API_URL` (default `http://localhos
 | `backend` | `pnpm start` | Start the server |
 | `backend` | `pnpm run seed` | Replace the database contents with demo data |
 | `backend` | `pnpm run backfill:search` | Add search hashes to messages saved before search existed (uses `MONGO_DB_URI`) |
+| `backend` | `pnpm run typecheck` | Check types with `tsc` (source strict, tests relaxed) |
 | `backend` | `pnpm test` | Run the API and socket tests |
 | `backend` | `pnpm run test:coverage` | Run the tests with a coverage report |
 | `frontend` | `pnpm run dev` | Start the Vite dev server |
@@ -223,7 +226,7 @@ cd frontend && pnpm test
 cd frontend && pnpm exec playwright install chromium && pnpm run test:e2e
 ```
 
-The backend tests need no setup and never touch a real database. They start an in-memory MongoDB with `mongodb-memory-server` (the binary, about 120 MB, downloads on the first run), give each test file its own database, and use fake secrets from `backend/vitest.config.js`.
+The backend tests need no setup and never touch a real database. They start an in-memory MongoDB with `mongodb-memory-server` (the binary, about 120 MB, downloads on the first run), give each test file its own database, and use fake secrets from `backend/vitest.config.ts`.
 
 - **Backend (138 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response, TURN credentials from mocked Cloudflare and Metered responses, push notifications with a mocked `web-push` (who gets one, the payload, dropped subscriptions), and message search (word starts, privacy across chats, edits and deletes, the backfill, and that hashes never reach the client). Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status and that bad payloads are dropped.
 - **Frontend (42 tests):** the login and sign-up pages with Testing Library on jsdom (form submit, server errors, client checks, the saved session check), the Zustand conversation store, the IndexedDB message cache (on `fake-indexeddb`) and the time formatters.
@@ -319,7 +322,7 @@ All routes start with `/api`. Every route except signup, login and logout needs 
 Everything deploys from `main`.
 
 - **Frontend (Vercel):** root directory `frontend`. `vercel.json` forwards `/api/*` to the Render backend and sends every other path to `index.html`. Set `VITE_API_URL` to the Render URL.
-- **Backend (Render):** root directory `backend`, Node 22, build command `corepack enable && pnpm install --frozen-lockfile`, start command `pnpm start`, Render auto-deploy off. Set the required variables from the table above.
+- **Backend (Render):** root directory `backend`, Node 22.18 or later (it runs the `.ts` files directly), build command `corepack enable && pnpm install --frozen-lockfile`, start command `pnpm start`, Render auto-deploy off. Set the required variables from the table above.
 - **CI and backend deploys (GitHub Actions):** `.github/workflows/ci.yml` runs on every push. When the backend and end-to-end tests pass on `main` and the push changed something in `backend/`, it calls the Render deploy hook, stored in the `RENDER_DEPLOY_HOOK_URL` repository secret. Running the workflow by hand from the Actions tab always deploys.
 - **Keep-alive (GitHub Actions):** `.github/workflows/keep-alive.yml` calls `/healthz` every 10 minutes so the free Render instance doesn't fall asleep. GitHub may start scheduled runs a few minutes late, and it turns scheduled workflows off after 60 days without commits; turn it back on from the Actions tab. It can also be run by hand from there.
 

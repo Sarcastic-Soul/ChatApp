@@ -3,18 +3,19 @@
   "version": "1.0.0",
   "type": "module",
   "engines": {
-    "node": "22.x"
+    "node": ">=22.18.0 <23"
   },
   "packageManager": "pnpm@12.4.2",
-  "main": "server.js",
+  "main": "server.ts",
   "scripts": {
-    "start": "node --env-file-if-exists=.env server.js",
-    "dev": "node --watch --env-file-if-exists=.env server.js",
-    "seed": "node --env-file-if-exists=.env seed.js",
+    "start": "node --env-file-if-exists=.env server.ts",
+    "dev": "node --watch --env-file-if-exists=.env server.ts",
+    "seed": "node --env-file-if-exists=.env seed.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "backfill:search": "node --env-file-if-exists=.env scripts/backfill-search-index.js"
+    "backfill:search": "node --env-file-if-exists=.env scripts/backfill-search-index.ts",
+    "typecheck": "tsc -p . && tsc -p tests"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -32,10 +33,18 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.20.4",
+    "@types/supertest": "^7.2.1",
+    "@types/web-push": "^3.6.4",
     "@vitest/coverage-v8": "^5.0.3",
     "mongodb-memory-server-core": "^11.3.0",
     "socket.io-client": "^4.8.4",
     "supertest": "^7.3.0",
+    "typescript": "^7.0.2",
     "vitest": "^5.0.3"
   }
 }

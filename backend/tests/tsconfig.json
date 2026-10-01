@@ -1,0 +1,10 @@
+{
+    // Tests are checked too, but without strict null and implicit any checks,
+    // so fixtures like `let alice;` set in beforeEach need no annotations
+    "extends": "../tsconfig.json",
+    "compilerOptions": {
+        "strict": false
+    },
+    "include": ["**/*.ts", "../types/**/*.d.ts"],
+    "exclude": []
+}
