@@ -13,7 +13,8 @@
     "seed": "node --env-file-if-exists=.env seed.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "backfill:search": "node --env-file-if-exists=.env scripts/backfill-search-index.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

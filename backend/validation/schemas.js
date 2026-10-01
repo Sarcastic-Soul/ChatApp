@@ -64,6 +64,13 @@ export const getMessagesSchema = {
 };
 
 // The id is a conversation id, or a user id when starting a new 1-on-1 chat
+export const searchMessagesSchema = {
+    query: z.object({
+        q: requiredText("Search text", 100),
+        limit: z.coerce.number().int().min(1).max(50).default(20),
+    }),
+};
+
 export const sendMessageSchema = {
     params: conversationParams,
     body: z

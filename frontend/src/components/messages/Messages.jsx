@@ -14,6 +14,8 @@ import {
 import Avatar from "../Avatar";
 import useConversation from "../../zustand/useConversation";
 
+const MAX_JUMP_PAGES = 20;
+
 const Messages = ({ searchQuery }) => {
     const { messages, loading, loadOlderMessages, hasMore, isLoadingMore } =
         useGetMessages();
@@ -21,7 +23,7 @@ const Messages = ({ searchQuery }) => {
     const observer = useRef();
     const lastMessageRef = useRef();
     const viewportRef = useRef();
-    const { typingUsers, selectedConversation } = useConversation();
+    const { typingUsers, selectedConversation, jumpToMessageId, setJumpToMessageId } = useConversation();
 
     const filteredMessages =
         messages?.filter((message) => {
@@ -45,7 +47,45 @@ const Messages = ({ searchQuery }) => {
         [isLoadingMore, hasMore, loadOlderMessages],
     );
 
+    // Opened from a search result: scroll to that message and mark it briefly.
+    // Older messages are not loaded yet, so fetch earlier pages until it shows
+    // up, giving up after MAX_JUMP_PAGES.
+    const jumpPagesRef = useRef(0);
     useEffect(() => {
+        jumpPagesRef.current = 0;
+    }, [jumpToMessageId]);
+
+    useEffect(() => {
+        if (!jumpToMessageId || messages.length === 0) return;
+        const node = document.getElementById(`message-${jumpToMessageId}`);
+        if (!node) {
+            if (!hasMore || jumpPagesRef.current >= MAX_JUMP_PAGES) {
+                setJumpToMessageId(null);
+            } else if (!loading && !isLoadingMore) {
+                jumpPagesRef.current += 1;
+                loadOlderMessages();
+            }
+            return;
+        }
+        const timer = setTimeout(() => {
+            node.scrollIntoView({ block: "center" });
+            node.classList.add("message-flash");
+            setTimeout(() => node.classList.remove("message-flash"), 1600);
+            setJumpToMessageId(null);
+        }, 150);
+        return () => clearTimeout(timer);
+    }, [
+        jumpToMessageId,
+        messages,
+        setJumpToMessageId,
+        hasMore,
+        loading,
+        isLoadingMore,
+        loadOlderMessages,
+    ]);
+
+    useEffect(() => {
+        if (useConversation.getState().jumpToMessageId) return;
         if (messages.length > 0 && lastMessageRef.current) {
             setTimeout(() => {
                 lastMessageRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -90,6 +130,7 @@ const Messages = ({ searchQuery }) => {
                     return (
                         <div
                             key={message._id}
+                            id={`message-${message._id}`}
                             ref={isLastMessage ? lastMessageRef : null}
                         >
                             <Message message={message} />

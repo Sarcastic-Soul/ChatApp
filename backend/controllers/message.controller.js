@@ -5,6 +5,7 @@ import { getReceiverSocketId, io } from "../socket/socket.js";
 import { encryptText, decryptText } from "../utils/encryption.js";
 import { cleanProfanity } from "../utils/profanityFilter.js";
 import { messageNotification, sendPushToUsers } from "../utils/push.js";
+import { matchesQuery, queryTokensFor, searchTokensFor } from "../utils/searchIndex.js";
 
 export const sendMessage = async (req, res) => {
     try {
@@ -64,6 +65,7 @@ export const sendMessage = async (req, res) => {
             senderId,
             receiverId: conversation._id,
             message: cleanedText ? encryptText(cleanedText) : "",
+            searchTokens: cleanedText ? searchTokensFor(cleanedText) : undefined,
             mediaUrl: mediaUrl || null,
             mediaType,
             replyTo: replyTo || null,
@@ -398,6 +400,7 @@ export const editMessage = async (req, res) => {
 
         const cleanedText = newText ? cleanProfanity(newText) : "";
         message.message = encryptText(cleanedText);
+        message.searchTokens = searchTokensFor(cleanedText);
         message.isEdited = true;
         await message.save();
 
@@ -410,6 +413,7 @@ export const editMessage = async (req, res) => {
         ]);
 
         const populatedObj = messageObj.toObject();
+        delete populatedObj.searchTokens;
         if (populatedObj.message) {
             populatedObj.message = decryptText(populatedObj.message);
         }
@@ -459,6 +463,7 @@ export const deleteMessage = async (req, res) => {
 
         message.isDeleted = true;
         message.message = encryptText("This message was deleted");
+        message.searchTokens = undefined;
         await message.save();
 
         const messageObj = await message.populate([
@@ -496,6 +501,45 @@ export const deleteMessage = async (req, res) => {
         res.status(200).json(populatedObj);
     } catch (error) {
         console.error("Error in deleteMessage controller: ", error.message);
+        res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+// Searches the text of every chat the user is in, newest first. Works on
+// the blind index, then decrypts the hits and checks them again.
+export const searchMessages = async (req, res) => {
+    try {
+        const { q, limit } = req.query;
+        const tokens = queryTokensFor(q);
+        if (tokens.length === 0) return res.status(200).json([]);
+
+        const conversations = await Conversation.find({ participants: req.user._id }).select("_id").lean();
+
+        const candidates = await Message.find({
+            receiverId: { $in: conversations.map((c) => c._id) },
+            searchTokens: { $all: tokens },
+            isDeleted: { $ne: true },
+        })
+            .sort({ createdAt: -1 })
+            .limit(limit * 2)
+            .populate("senderId", "fullName profilePic username")
+            .lean();
+
+        const results = candidates
+            .map((m) => ({ ...m, message: decryptText(m.message) }))
+            .filter((m) => matchesQuery(m.message, q))
+            .slice(0, limit)
+            .map((m) => ({
+                _id: m._id,
+                conversationId: m.receiverId,
+                message: m.message,
+                createdAt: m.createdAt,
+                sender: m.senderId,
+            }));
+
+        res.status(200).json(results);
+    } catch (error) {
+        console.error("Error in searchMessages controller: ", error.message);
         res.status(500).json({ error: "Internal server error" });
     }
 };

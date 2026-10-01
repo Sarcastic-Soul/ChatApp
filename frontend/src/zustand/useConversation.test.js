@@ -31,6 +31,13 @@ describe("messages", () => {
         expect(addMessageToCache).not.toHaveBeenCalled();
     });
 
+    test("setMessages takes an updater function, used when older pages load", () => {
+        store().setMessages([{ _id: "m2" }]);
+        store().setMessages((prev) => [{ _id: "m1" }, ...prev]);
+
+        expect(store().messages).toEqual([{ _id: "m1" }, { _id: "m2" }]);
+    });
+
     test("updateMessage swaps the matching message and updates the cache", () => {
         store().setSelectedConversation({ _id: "chat1" });
         store().setMessages([{ _id: "m1", message: "old" }, { _id: "m2", message: "other" }]);

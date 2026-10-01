@@ -10,7 +10,10 @@ const useConversation = create((set, get) => ({
         set({ selectedConversation: conversation }),
 
     messages: [],
-    setMessages: (msgs) => set({ messages: msgs }),
+    setMessages: (msgs) =>
+        set((state) => ({
+            messages: typeof msgs === "function" ? msgs(state.messages) : msgs,
+        })),
 
     replyingToMessage: null,
     setReplyingToMessage: (message) => set({ replyingToMessage: message }),
@@ -48,6 +51,10 @@ const useConversation = create((set, get) => ({
 
     searchTerm: "",
     setSearchTerm: (term) => set({ searchTerm: term }),
+
+    // A message picked from search results, scrolled to once the chat loads
+    jumpToMessageId: null,
+    setJumpToMessageId: (id) => set({ jumpToMessageId: id }),
 
     unreadMessages: {},
     setUnreadMessage: (conversationId) =>

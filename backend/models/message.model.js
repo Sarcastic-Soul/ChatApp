@@ -50,6 +50,12 @@ const messageSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        // Blind index for search (utils/searchIndex.js). Never sent to clients.
+        searchTokens: {
+            type: [String],
+            default: undefined,
+            select: false,
+        },
         replyTo: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Message",
@@ -75,6 +81,16 @@ const messageSchema = new mongoose.Schema(
 
 // Optimizing database queries for faster message retrieval
 messageSchema.index({ receiverId: 1, createdAt: -1 });
+messageSchema.index({ searchTokens: 1 });
+
+// A document that was just saved still holds its tokens, so strip them
+// from every JSON response too
+messageSchema.set("toJSON", {
+    transform: (doc, ret) => {
+        delete ret.searchTokens;
+        return ret;
+    },
+});
 
 const Message = mongoose.model("Message", messageSchema);
 

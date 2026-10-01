@@ -41,9 +41,11 @@ otherwise.
   - [ ] Set the VAPID variables on Render
   - On iPhone this only works when the app is added to the home screen
 - [ ] **Message search**
-  - Messages are encrypted in the database, so a MongoDB text index can't
-    search them. Options: search the IndexedDB cache in the browser, or keep
-    a separate keyword index
+  - [x] Blind index: keyed hashes of each word and word start, saved next to
+        the encrypted text and kept in sync on edit and delete
+  - [x] `GET /api/messages/search`, sidebar results and jump to the message
+  - [ ] Run `pnpm run backfill:search` against production so older messages
+        can be found
 - [ ] **TypeScript**
   - [ ] Move the backend first (zod schemas can supply the request types),
         then the frontend

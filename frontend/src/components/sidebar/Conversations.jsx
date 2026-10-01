@@ -1,5 +1,6 @@
 import useGetConversations from "../../hooks/useGetConversations";
 import Conversation from "./Conversation";
+import MessageSearchResults from "./MessageSearchResults";
 import useConversation from "../../zustand/useConversation";
 import { ScrollArea, Text, Stack, Skeleton, Group } from "@mantine/core";
 
@@ -17,6 +18,11 @@ const Conversations = () => {
     return (
         <ScrollArea type="auto" style={{ flex: 1 }} mx={-6}>
             <Stack gap={2} px={6} py={4}>
+                {searchTerm.trim().length >= 2 && filteredConversations.length > 0 && (
+                    <Text size="xs" fw={600} c="dimmed" px={12} pb={4}>
+                        Chats
+                    </Text>
+                )}
                 {filteredConversations.map((conversation) => (
                     <Conversation key={conversation._id} conversation={conversation} />
                 ))}
@@ -33,13 +39,15 @@ const Conversations = () => {
                         </Group>
                     ))}
 
-                {!loading && filteredConversations.length === 0 && (
+                {!loading && filteredConversations.length === 0 && searchTerm.trim().length < 2 && (
                     <Text ta="center" c="dimmed" mt="xl" size="sm" px="md">
                         {searchTerm
                             ? `No chats match "${searchTerm}".`
                             : "No chats yet. Use the + button to start one."}
                     </Text>
                 )}
+
+                <MessageSearchResults />
             </Stack>
         </ScrollArea>
     );

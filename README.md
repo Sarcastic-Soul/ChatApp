@@ -42,6 +42,7 @@ The backend runs on Render's free tier. A GitHub Actions job pings it every 10 m
 - One-on-one and group chats, with typing indicators, read receipts and online status
 - Replies, edits, delete for everyone, reactions and forwarding
 - Images, video and voice notes, uploaded straight from the browser to Cloudinary
+- Search every chat's messages from the sidebar, even though they're encrypted in the database; picking a result jumps to that message
 - Chats open from an IndexedDB cache, then refresh from the server (75% faster on a 3G connection, see [Cache benchmark](#cache-benchmark))
 
 **Calls**
@@ -86,6 +87,8 @@ d2 docs/architecture.d2 docs/architecture.svg
 **Real-time updates.** Each socket joins a room named after its user ID, plus one room per group the user is in. When a message is sent, edited, deleted or reacted to, the API saves it and then sends the change to the right rooms. A user with several tabs open gets updates in all of them.
 
 **Encryption.** Message text is encrypted with AES-256-CBC (Node `crypto`) and a random IV before it is saved, and decrypted only when a member of the chat asks for it. The server won't start without `ENCRYPTION_KEY`.
+
+**Search.** Encrypted text can't go in a MongoDB text index, so each message also gets a blind index: a list of keyed hashes (HMAC-SHA256, with a key derived from `ENCRYPTION_KEY`) of its words and word starts, from 3 to 12 letters (two-letter words are stored whole). "meeting" is stored as the hashes of "mee", "meet", ... "meeting", so typing "meet" finds it. A search hashes the query words the same way, finds messages with every hash in chats the user belongs to, then decrypts the hits and checks them again. Someone with only the database sees hashes, not words, but can tell when two messages share a word; that is the trade-off for searching on the server. Edits update the hashes and deletes clear them. `pnpm run backfill:search` adds hashes to messages saved before search existed.
 
 **Input checks.** Every route that takes input runs its params, query and body through a [zod](https://zod.dev) schema (`backend/validation/schemas.js`). Bad input gets a `400` with a readable message, and unknown fields are dropped before they reach the controller. Socket event payloads are checked too, and malformed ones are ignored.
 
@@ -202,6 +205,7 @@ In development, Vite forwards `/api` to `VITE_API_URL` (default `http://localhos
 | `backend` | `pnpm run dev` | Start the server and restart on file changes (`node --watch`) |
 | `backend` | `pnpm start` | Start the server |
 | `backend` | `pnpm run seed` | Replace the database contents with demo data |
+| `backend` | `pnpm run backfill:search` | Add search hashes to messages saved before search existed (uses `MONGO_DB_URI`) |
 | `backend` | `pnpm test` | Run the API and socket tests |
 | `backend` | `pnpm run test:coverage` | Run the tests with a coverage report |
 | `frontend` | `pnpm run dev` | Start the Vite dev server |
@@ -221,8 +225,8 @@ cd frontend && pnpm exec playwright install chromium && pnpm run test:e2e
 
 The backend tests need no setup and never touch a real database. They start an in-memory MongoDB with `mongodb-memory-server` (the binary, about 120 MB, downloads on the first run), give each test file its own database, and use fake secrets from `backend/vitest.config.js`.
 
-- **Backend (126 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response, TURN credentials from mocked Cloudflare and Metered responses, and push notifications with a mocked `web-push` (who gets one, the payload, dropped subscriptions). Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status and that bad payloads are dropped.
-- **Frontend (41 tests):** the login and sign-up pages with Testing Library on jsdom (form submit, server errors, client checks, the saved session check), the Zustand conversation store, the IndexedDB message cache (on `fake-indexeddb`) and the time formatters.
+- **Backend (138 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response, TURN credentials from mocked Cloudflare and Metered responses, push notifications with a mocked `web-push` (who gets one, the payload, dropped subscriptions), and message search (word starts, privacy across chats, edits and deletes, the backfill, and that hashes never reach the client). Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status and that bad payloads are dropped.
+- **Frontend (42 tests):** the login and sign-up pages with Testing Library on jsdom (form submit, server errors, client checks, the saved session check), the Zustand conversation store, the IndexedDB message cache (on `fake-indexeddb`) and the time formatters.
 - **End to end (Playwright):** starts the real backend on an in-memory MongoDB and the Vite app, then two browsers sign up, start a chat and swap messages live over the socket.
 
 ### Cache benchmark
@@ -286,6 +290,7 @@ All routes start with `/api`. Every route except signup, login and logout needs 
 | `PUT` | `/users/update-pic` | Change your profile picture |
 | `PUT` | `/users/privacy` | Make your profile public or private |
 | `GET` | `/messages/:id?before=&limit=` | Messages in a chat, newest first, 50 at a time |
+| `GET` | `/messages/search?q=&limit=` | Search messages in your chats, newest first (20 by default, 50 at most) |
 | `POST` | `/messages/send/:id` | Send a message to a chat, or to a user to start a chat |
 | `PUT` | `/messages/edit/:messageId` | Edit your message |
 | `DELETE` | `/messages/delete/:messageId` | Delete your message for everyone |

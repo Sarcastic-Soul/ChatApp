@@ -7,8 +7,8 @@ const SearchInput = () => {
 
     return (
         <TextInput
-            placeholder="Search chats"
-            aria-label="Search chats"
+            placeholder="Search chats and messages"
+            aria-label="Search chats and messages"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.currentTarget.value)}
             leftSection={<MagnifyingGlassIcon size={16} />}

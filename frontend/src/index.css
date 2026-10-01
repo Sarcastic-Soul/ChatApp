@@ -108,6 +108,37 @@ p {
     outline-offset: 2px;
 }
 
+/* Matching words in message search results */
+.search-hit {
+    background: var(--mantine-primary-color-light);
+    color: var(--ink);
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+/* A message opened from search */
+.message-flash {
+    border-radius: var(--mantine-radius-md);
+    animation: message-flash 1.6s ease-out;
+}
+
+@keyframes message-flash {
+    0%,
+    40% {
+        background-color: var(--mantine-primary-color-light);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .message-flash {
+        animation: none;
+        outline: 2px solid var(--accent-text);
+    }
+}
+
 /* Drag handle between the sidebar and the chat */
 .resize-handle {
     width: 1px;
