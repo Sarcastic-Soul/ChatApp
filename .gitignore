@@ -43,3 +43,6 @@ tmp/
 
 # Playwright MCP output
 .playwright-mcp/
+
+# Test coverage reports
+coverage/
