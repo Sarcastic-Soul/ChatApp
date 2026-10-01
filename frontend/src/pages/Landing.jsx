@@ -1,319 +1,151 @@
 import { useState, useEffect } from "react";
-import {
-    Container,
-    Title,
-    Text,
-    Button,
-    Group,
-    SimpleGrid,
-    ThemeIcon,
-    Card,
-    Box,
-    Center,
-    Badge,
-    Loader,
-    Stack,
-} from "@mantine/core";
+import { Button, Group, Loader } from "@mantine/core";
 import { Link } from "react-router";
-import {
-    FiMessageSquare,
-    FiShield,
-    FiVideo,
-    FiUsers,
-    FiDroplet,
-    FiZap,
-    FiGithub,
-    FiFilter,
-} from "react-icons/fi";
+import { GithubLogoIcon } from "@phosphor-icons/react";
+import { useReducedMotion } from "motion/react";
+import * as m from "motion/react-m";
 import ThemeToggle from "../components/ThemeToggle";
+import ChatPreview from "../components/ChatPreview";
 import useLogin from "../hooks/useLogin";
+import "./Landing.css";
+
+const REPO_URL = "https://github.com/Sarcastic-Soul/ChatApp";
 
 const features = [
-    {
-        icon: FiMessageSquare,
-        title: "Real-time Messaging",
-        description:
-            "Experience lightning-fast message delivery with our optimized WebSocket architecture.",
-    },
-    {
-        icon: FiVideo,
-        title: "Crystal Clear Video Calls",
-        description:
-            "Connect face-to-face with high-quality, peer-to-peer WebRTC video and audio calling.",
-    },
-    {
-        icon: FiUsers,
-        title: "Group Conversations",
-        description:
-            "Create groups, add your friends, and collaborate seamlessly in shared spaces.",
-    },
-    {
-        icon: FiShield,
-        title: "AES-256 Encrypted",
-        description:
-            "Your messages are encrypted at rest, ensuring your private conversations stay private.",
-    },
-    {
-        icon: FiFilter,
-        title: "Profanity Shield",
-        description:
-            "Automated soft-masking filter censors offensive language before database persistence.",
-    },
-    {
-        icon: FiDroplet,
-        title: "Beautifully Themed",
-        description:
-            "Customize your experience with full dark mode support and dynamic color palettes.",
-    },
-    {
-        icon: FiZap,
-        title: "Blazing Fast",
-        description:
-            "Built on the modern MERN stack with highly optimized caching for instant load times.",
-    },
+    ["Live messages", "Socket.io delivery with typing indicators, read receipts and online status."],
+    ["Voice and video calls", "Direct WebRTC calls between two browsers. The socket only carries the handshake."],
+    ["Groups", "Make a group, add or remove people, hand out admin rights."],
+    ["Encrypted at rest", "Each message is encrypted with AES-256 before MongoDB stores it."],
+    ["Magic reply", "Gemini drafts a reply from the recent chat, in the tone you pick."],
+    ["Opens from cache", "Chats load from IndexedDB first, then refresh from the server."],
+    ["Profanity filter", "Offensive words are masked on the server before the message is saved."],
 ];
+
+const statusText = {
+    checking: "Waking the server",
+    online: "Server online",
+    offline: "Server offline",
+};
 
 const Landing = () => {
     const [serverStatus, setServerStatus] = useState("checking");
     const { loading, login } = useLogin();
-
-    const handleDemoLogin = async () => {
-        await login("alice", "password123");
-    };
+    const reduce = useReducedMotion();
 
     useEffect(() => {
         const checkStatus = async () => {
             try {
-                const res = await fetch(
-                    `${import.meta.env.VITE_API_URL}/healthz`,
-                );
-                if (res.ok) {
-                    setServerStatus("online");
-                } else {
-                    setServerStatus("offline");
-                }
-            } catch (error) {
+                const res = await fetch(`${import.meta.env.VITE_API_URL}/healthz`);
+                setServerStatus(res.ok ? "online" : "offline");
+            } catch {
                 setServerStatus("offline");
             }
         };
         checkStatus();
     }, []);
 
+    const rise = (delay) => ({
+        initial: reduce ? false : { opacity: 0, y: 16 },
+        animate: { opacity: 1, y: 0 },
+        transition: { type: "spring", bounce: 0, duration: 0.7, delay },
+    });
+
     return (
-        <Box style={{ overflow: "hidden", position: "relative" }}>
-            {/* Header Controls */}
-            <Box
-                style={{
-                    position: "absolute",
-                    top: 15,
-                    right: 15,
-                    zIndex: 100,
-                }}
-            >
-                <Group>
-                    {serverStatus === "checking" && (
-                        <Badge
-                            color="blue"
-                            variant="light"
-                            leftSection={<Loader size="xs" />}
-                        >
-                            Waking Server...
-                        </Badge>
-                    )}
-                    {serverStatus === "online" && (
-                        <Badge color="green" variant="light">
-                            Server Online
-                        </Badge>
-                    )}
-                    {serverStatus === "offline" && (
-                        <Badge color="red" variant="light">
-                            Server Offline
-                        </Badge>
-                    )}
-                    <Button
-                        component="a"
-                        href="https://github.com/Sarcastic-Soul/ChatApp"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        variant="subtle"
-                        size="sm"
-                        leftSection={<FiGithub size={16} />}
-                    >
-                        GitHub
+        <div className="landing">
+            <a className="skip-link" href="#main">
+                Skip to content
+            </a>
+            <header className="landing-nav">
+                <span className="wordmark">
+                    Chat<em>App</em>
+                </span>
+                <Group gap="md" wrap="nowrap">
+                    <span className="status" data-status={serverStatus} role="status">
+                        {serverStatus === "checking" ? (
+                            <Loader size={10} color="gray" />
+                        ) : (
+                            <span className="status-dot" />
+                        )}
+                        <span className="status-text">{statusText[serverStatus]}</span>
+                    </span>
+                    <a className="nav-link hide-sm" href={REPO_URL} target="_blank" rel="noopener noreferrer">
+                        <GithubLogoIcon size={18} /> GitHub
+                    </a>
+                    <ThemeToggle position="bottom-end" />
+                    <Button component={Link} to="/login" variant="default" size="sm">
+                        Log in
                     </Button>
-                    <ThemeToggle />
                 </Group>
-            </Box>
+            </header>
 
-            {/* Hero Section */}
-            <Box
-                py={120}
-                style={{
-                    backgroundColor: "var(--mantine-color-body)",
-                    borderBottom:
-                        "1px solid var(--mantine-color-default-border)",
-                }}
-            >
-                <Container size="lg">
-                    <Center>
-                        <Group align="center" gap="sm" mb="xl">
-                            <ThemeIcon size={50} radius="xl" variant="light">
-                                <FiMessageSquare size={30} />
-                            </ThemeIcon>
-                            <Title order={1} size="h1" fw={900}>
-                                ChatApp
-                            </Title>
-                        </Group>
-                    </Center>
-
-                    <Title
-                        order={1}
-                        ta="center"
-                        fw={900}
-                        style={{ fontSize: "clamp(2.5rem, 5vw, 4rem)" }}
-                        mb="md"
+            <main id="main">
+                <section className="hero">
+                    <div>
+                        <m.h1 className="hero-title" {...rise(0)}>
+                            Talk now,
+                            <br />
+                            <em>call</em> when{" "}
+                            <br />
+                            typing isn't enough.
+                        </m.h1>
+                        <m.p className="hero-lede" {...rise(0.12)}>
+                            A chat app with groups, voice notes and peer-to-peer video calls.
+                            Messages are encrypted with AES-256 before they reach the database.
+                        </m.p>
+                        <m.div {...rise(0.2)}>
+                            <Group gap="sm">
+                                <Button size="lg" loading={loading} onClick={() => login("alice", "password123")}>
+                                    Try the demo account
+                                </Button>
+                                <Button component={Link} to="/signup" size="lg" variant="default">
+                                    Create an account
+                                </Button>
+                            </Group>
+                            <p className="hero-note">
+                                The demo logs you in as Alice. The free server can take about 30 seconds to
+                                wake up.
+                            </p>
+                        </m.div>
+                    </div>
+                    <m.div
+                        className="hero-preview"
+                        initial={reduce ? false : { opacity: 0, y: 24, rotate: 0 }}
+                        animate={{ opacity: 1, y: 0, rotate: 1.2 }}
+                        transition={{ type: "spring", bounce: 0, duration: 0.8, delay: 0.15 }}
                     >
-                        Connect with your friends,{" "}
-                        <Text
-                            component="span"
-                            c="var(--mantine-primary-color-filled)"
-                            inherit
-                        >
-                            instantly.
-                        </Text>
-                    </Title>
+                        <ChatPreview />
+                    </m.div>
+                </section>
 
-                    <Text
-                        ta="center"
-                        c="dimmed"
-                        size="xl"
-                        maw={600}
-                        mx="auto"
-                        mb={40}
-                    >
-                        A beautiful, modern, and feature-rich chat platform
-                        designed to keep you seamlessly connected through text
-                        and high-quality video calls.
-                    </Text>
+                <section className="features" aria-labelledby="features-title">
+                    <h2 id="features-title">What's inside</h2>
+                    <ol>
+                        {features.map(([title, text]) => (
+                            <li key={title}>
+                                <strong>{title}</strong>
+                                <span>{text}</span>
+                            </li>
+                        ))}
+                    </ol>
+                </section>
 
-                    <Stack align="center" gap="sm">
-                        <Group justify="center" gap="md">
-                            <Button
-                                component={Link}
-                                to="/signup"
-                                size="lg"
-                                radius="xl"
-                            >
-                                Get Started for Free
-                            </Button>
-                            <Button
-                                component={Link}
-                                to="/login"
-                                size="lg"
-                                radius="xl"
-                                variant="default"
-                            >
-                                Login to your Account
-                            </Button>
-                        </Group>
+                <section className="landing-stack">
+                    <p>
+                        Built with React 19, Mantine, Zustand and Vite on the front. Express, Socket.io and
+                        MongoDB on the back. Frontend on Vercel, backend on Render.
+                    </p>
+                </section>
+            </main>
 
-                        <Button
-                            size="lg"
-                            radius="xl"
-                            variant="outline"
-                            color="blue"
-                            loading={loading}
-                            onClick={handleDemoLogin}
-                        >
-                            Try Demo Account
-                        </Button>
-                    </Stack>
-                </Container>
-            </Box>
-
-            {/* Features Section */}
-            <Container size="lg" py={80}>
-                <Title order={2} ta="center" mb={50}>
-                    Everything you need in a modern chat app
-                </Title>
-
-                <SimpleGrid
-                    cols={{ base: 1, sm: 2, md: 3 }}
-                    spacing="xl"
-                    verticalSpacing="xl"
-                >
-                    {features.map((feature, index) => (
-                        <Card
-                            key={index}
-                            shadow="sm"
-                            padding="xl"
-                            radius="md"
-                            withBorder
-                            style={{
-                                transition:
-                                    "transform 200ms ease, box-shadow 200ms ease",
-                                "&:hover": {
-                                    transform: "translateY(-5px)",
-                                    boxShadow: "var(--mantine-shadow-md)",
-                                },
-                            }}
-                        >
-                            <ThemeIcon
-                                size={50}
-                                radius="md"
-                                variant="light"
-                                mb="md"
-                            >
-                                <feature.icon size={26} />
-                            </ThemeIcon>
-                            <Text fw={700} size="lg" mb="sm">
-                                {feature.title}
-                            </Text>
-                            <Text c="dimmed" size="sm">
-                                {feature.description}
-                            </Text>
-                        </Card>
-                    ))}
-                </SimpleGrid>
-            </Container>
-
-            {/* Footer */}
-            <Box
-                py="xl"
-                style={{
-                    borderTop: "1px solid var(--mantine-color-default-border)",
-                    backgroundColor: "var(--mantine-color-body)",
-                }}
-            >
-                <Container size="lg">
-                    <Group justify="space-between" align="center">
-                        <Group gap="xs">
-                            <ThemeIcon size={30} radius="xl" variant="light">
-                                <FiMessageSquare size={18} />
-                            </ThemeIcon>
-                            <Text fw={700}>ChatApp</Text>
-                        </Group>
-                        <Group gap="md">
-                            <Button
-                                component="a"
-                                href="https://github.com/Sarcastic-Soul/ChatApp"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                variant="subtle"
-                                size="xs"
-                                leftSection={<FiGithub size={14} />}
-                            >
-                                Source Code
-                            </Button>
-                            <Text c="dimmed" size="sm">
-                                © {new Date().getFullYear()} ChatApp. All rights
-                                reserved.
-                            </Text>
-                        </Group>
-                    </Group>
-                </Container>
-            </Box>
-        </Box>
+            <footer className="landing-footer">
+                <span className="wordmark small">
+                    Chat<em>App</em>
+                </span>
+                <a className="nav-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">
+                    <GithubLogoIcon size={16} /> Source on GitHub
+                </a>
+            </footer>
+        </div>
     );
 };
 

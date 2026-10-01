@@ -32,7 +32,7 @@ const useForwardMessage = () => {
             if (!res.ok) {
                 throw new Error(data.error || "Failed to forward message");
             }
-            notifications.show({ message: "Message forwarded successfully", color: "green" });
+            notifications.show({ message: "Message forwarded", color: "green" });
             
             if (selectedConversation && (selectedConversation._id === targetConversationId || selectedConversation.participantId === targetConversationId)) {
                 addMessage(data.newMessage);

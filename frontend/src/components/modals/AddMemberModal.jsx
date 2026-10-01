@@ -6,12 +6,12 @@ import {
     TextInput,
     ScrollArea,
     Group,
-    Avatar,
     Text,
     Button,
     Center,
     Loader,
 } from "@mantine/core";
+import Avatar from "../Avatar";
 
 const AddMemberModal = ({ group, onClose, onMemberAdded }) => {
     const { users, loading } = useGetUsers();
@@ -42,7 +42,7 @@ const AddMemberModal = ({ group, onClose, onMemberAdded }) => {
             const data = await res.json();
             if (data.error) throw new Error(data.error);
 
-            notifications.show({ message: "Member added successfully!", color: "green" });
+            notifications.show({ message: "Member added", color: "green" });
             onMemberAdded(data);
         } catch (error) {
             notifications.show({ message: error.message, color: "red" });
@@ -53,11 +53,12 @@ const AddMemberModal = ({ group, onClose, onMemberAdded }) => {
         <Modal
             opened={true}
             onClose={onClose}
-            title={<Text fw={600}>Add Members</Text>}
+            title="Add members"
             centered
         >
             <TextInput
-                placeholder="Search for users to add..."
+                placeholder="Search people"
+                aria-label="Search people"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.currentTarget.value)}
                 mb="md"
@@ -66,7 +67,7 @@ const AddMemberModal = ({ group, onClose, onMemberAdded }) => {
             <ScrollArea h={250} type="auto" offsetScrollbars>
                 {loading ? (
                     <Center h={100}>
-                        <Loader size="sm" />
+                        <Loader size="sm" color="gray" />
                     </Center>
                 ) : filteredUsers.length > 0 ? (
                     filteredUsers.map((user) => (
@@ -75,21 +76,14 @@ const AddMemberModal = ({ group, onClose, onMemberAdded }) => {
                             justify="space-between"
                             p="xs"
                             wrap="nowrap"
-                            style={{
-                                borderRadius: "var(--mantine-radius-md)",
-                                "&:hover": {
-                                    backgroundColor:
-                                        "var(--mantine-color-default-hover)",
-                                },
-                            }}
+                            className="row-button"
+                            style={{ cursor: "default" }}
                         >
                             <Group gap="sm">
-                                <Avatar
-                                    src={user.profilePic}
-                                    radius="xl"
-                                    size="md"
-                                />
-                                <Text fw={500}>{user.fullName}</Text>
+                                <Avatar src={user.profilePic} name={user.fullName} alt="" radius="xl" />
+                                <Text fw={500} size="sm">
+                                    {user.fullName}
+                                </Text>
                             </Group>
                             <Button
                                 size="xs"
@@ -102,7 +96,7 @@ const AddMemberModal = ({ group, onClose, onMemberAdded }) => {
                     ))
                 ) : (
                     <Text ta="center" c="dimmed" py="md">
-                        No users available.
+                        Everyone is already in this group.
                     </Text>
                 )}
             </ScrollArea>

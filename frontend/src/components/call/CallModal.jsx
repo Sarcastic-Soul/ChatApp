@@ -1,22 +1,22 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import {
     Modal,
     Button,
     Group,
     Text,
-    Avatar,
     Stack,
     Box,
     ActionIcon,
 } from "@mantine/core";
+import Avatar from "../Avatar";
 import {
-    FiPhone,
-    FiPhoneOff,
-    FiVideo,
-    FiVideoOff,
-    FiMic,
-    FiMicOff,
-} from "react-icons/fi";
+    PhoneIcon,
+    PhoneDisconnectIcon,
+    VideoCameraIcon,
+    VideoCameraSlashIcon,
+    MicrophoneIcon,
+    MicrophoneSlashIcon,
+} from "@phosphor-icons/react";
 import { useCallContext } from "../../context/CallContext";
 
 const CallModal = () => {
@@ -74,35 +74,39 @@ const CallModal = () => {
             >
                 <Stack align="center" gap="md" p="md">
                     <Avatar
-                        src={call.pic || "/default-avatar.png"}
+                        src={call.pic || null}
+                        name={call.name}
                         size="xl"
                         radius="xl"
                     />
-                    <Text size="lg" fw={600}>
-                        {call.name || "Someone"} is{" "}
-                        {call.callType === "audio" ? "voice" : "video"}{" "}
-                        calling...
-                    </Text>
+                    <Stack gap={2} align="center">
+                        <Text ff="heading" fz={32} lh={1.1} ta="center">
+                            {call.name || "Someone"}
+                        </Text>
+                        <Text c="dimmed">
+                            Incoming {call.callType === "audio" ? "voice" : "video"} call
+                        </Text>
+                    </Stack>
                     <Group mt="md">
                         <Button
-                            color="green"
                             leftSection={
                                 call.callType === "audio" ? (
-                                    <FiPhone size={18} />
+                                    <PhoneIcon size={18} />
                                 ) : (
-                                    <FiVideo size={18} />
+                                    <VideoCameraIcon size={18} />
                                 )
                             }
                             onClick={answerCall}
                         >
-                            Accept
+                            Answer
                         </Button>
                         <Button
                             color="red"
-                            leftSection={<FiPhoneOff size={18} />}
+                            variant="light"
+                            leftSection={<PhoneDisconnectIcon size={18} />}
                             onClick={rejectCall}
                         >
-                            Reject
+                            Decline
                         </Button>
                     </Group>
                 </Stack>
@@ -118,7 +122,7 @@ const CallModal = () => {
                 closeOnEscape={false}
                 styles={{ body: { height: "100%", padding: 0 } }}
             >
-                <Box pos="relative" w="100%" h="100%" bg="dark.9">
+                <Box pos="relative" w="100%" h="100%" bg="#100e0c">
                     {/* Remote Video (Full Screen) */}
                     {callAccepted ? (
                         <>
@@ -140,12 +144,13 @@ const CallModal = () => {
                             {(remoteVideoOff || call.callType === "audio") && (
                                 <Stack align="center" justify="center" h="100%">
                                     <Avatar
-                                        src={call.pic || "/default-avatar.png"}
+                                        src={call.pic || null}
+                                        name={call.name}
                                         size={120}
                                         radius="100%"
                                         mb="md"
                                     />
-                                    <Text size="xl" c="white" fw={600}>
+                                    <Text ff="heading" fz={34} c="#ebe4d8" ta="center">
                                         {call.callType === "audio"
                                             ? call.name || "User"
                                             : `${call.name || "User"} turned off their camera`}
@@ -156,13 +161,14 @@ const CallModal = () => {
                     ) : (
                         <Stack align="center" justify="center" h="100%">
                             <Avatar
-                                src={call.pic || "/default-avatar.png"}
+                                src={call.pic || null}
+                                name={call.name}
                                 size={100}
                                 radius="100%"
                                 mb="md"
                             />
-                            <Text size="xl" c="white" fw={600}>
-                                Calling...
+                            <Text ff="heading" fz={34} c="#ebe4d8">
+                                Calling…
                             </Text>
                         </Stack>
                     )}
@@ -181,7 +187,7 @@ const CallModal = () => {
                                     overflow: "hidden",
                                     boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
                                     border: "2px solid rgba(255,255,255,0.2)",
-                                    backgroundColor: "#000",
+                                    backgroundColor: "#171512",
                                 }}
                             >
                                 <video
@@ -204,7 +210,7 @@ const CallModal = () => {
                                         h="100%"
                                         bg="dark.7"
                                     >
-                                        <FiVideoOff size={32} color="white" />
+                                        <VideoCameraSlashIcon size={32} color="#ebe4d8" />
                                     </Stack>
                                 )}
                             </Box>
@@ -222,14 +228,15 @@ const CallModal = () => {
                         <ActionIcon
                             variant="filled"
                             color={isMuted ? "red" : "dark.5"}
-                            size="xl"
+                            size={52}
                             radius="xl"
                             onClick={toggleMute}
+                            aria-label={isMuted ? "Unmute" : "Mute"}
                         >
                             {isMuted ? (
-                                <FiMicOff size={22} />
+                                <MicrophoneSlashIcon size={22} />
                             ) : (
-                                <FiMic size={22} />
+                                <MicrophoneIcon size={22} />
                             )}
                         </ActionIcon>
 
@@ -238,23 +245,24 @@ const CallModal = () => {
                             size="lg"
                             radius="xl"
                             onClick={leaveCall}
-                            leftSection={<FiPhoneOff size={20} />}
+                            leftSection={<PhoneDisconnectIcon size={20} />}
                         >
-                            End Call
+                            End call
                         </Button>
 
                         {call?.callType !== "audio" && (
                             <ActionIcon
                                 variant="filled"
                                 color={isVideoOff ? "red" : "dark.5"}
-                                size="xl"
+                                size={52}
                                 radius="xl"
                                 onClick={toggleVideo}
+                                aria-label={isVideoOff ? "Turn camera on" : "Turn camera off"}
                             >
                                 {isVideoOff ? (
-                                    <FiVideoOff size={22} />
+                                    <VideoCameraSlashIcon size={22} />
                                 ) : (
-                                    <FiVideo size={22} />
+                                    <VideoCameraIcon size={22} />
                                 )}
                             </ActionIcon>
                         )}

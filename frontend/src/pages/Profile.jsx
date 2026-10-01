@@ -3,29 +3,19 @@ import { useNavigate } from "react-router";
 import { useAuthContext } from "../context/AuthContext";
 import useGetUserDetails from "../hooks/useGetUserDetails";
 import { notifications } from "@mantine/notifications";
+import { CameraIcon } from "@phosphor-icons/react";
+import PageShell, { DetailList } from "../components/layout/PageShell";
 import {
-    FiCamera,
-    FiArrowLeft,
-    FiCalendar,
-    FiUser,
-    FiGlobe,
-    FiLock,
-} from "react-icons/fi";
-import {
-    Center,
-    Paper,
-    Title,
-    Avatar,
     Text,
     Stack,
     ActionIcon,
     Box,
     FileButton,
-    Loader,
-    Group,
-    ThemeIcon,
     Switch,
+    Skeleton,
+    Tooltip,
 } from "@mantine/core";
+import Avatar from "../components/Avatar";
 
 const Profile = () => {
     const { authUser, setAuthUser } = useAuthContext();
@@ -85,12 +75,12 @@ const Profile = () => {
 
             setAuthUser({ ...authUser, profilePic: data.profilePic });
             notifications.show({
-                message: "Profile picture updated successfully",
+                message: "Profile photo updated",
                 color: "green",
             });
         } catch (error) {
             notifications.show({
-                message: error.message || "Failed to update profile picture",
+                message: error.message || "Couldn't update your photo",
                 color: "red",
             });
             setPreviewUrl(null); // Revert preview on failure
@@ -117,12 +107,12 @@ const Profile = () => {
 
             setAuthUser({ ...authUser, isPublic: data.isPublic });
             notifications.show({
-                message: `Profile is now ${data.isPublic ? "Public" : "Private"}`,
+                message: `Your profile is now ${data.isPublic ? "public" : "private"}`,
                 color: "green",
             });
         } catch (error) {
             notifications.show({
-                message: error.message || "Failed to update privacy settings",
+                message: error.message || "Couldn't change your privacy setting",
                 color: "red",
             });
         } finally {
@@ -130,179 +120,84 @@ const Profile = () => {
         }
     };
 
+    const memberSince = userDetails?.createdAt
+        ? new Date(userDetails.createdAt).toLocaleDateString(undefined, {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+          })
+        : null;
+
     return (
-        <Center mih="100vh" p="md">
-            <Paper
-                withBorder
-                shadow="md"
-                p={30}
-                radius="md"
-                w="100%"
-                maw={400}
-                style={{ position: "relative" }}
-            >
-                <ActionIcon
-                    variant="subtle"
-                    onClick={() => navigate("/")}
-                    style={{ position: "absolute", top: 15, left: 15 }}
-                >
-                    <FiArrowLeft />
-                </ActionIcon>
-
-                <Title order={2} ta="center" mb="xl" mt="sm">
-                    Your Profile
-                </Title>
-
-                <Stack align="center" gap="lg">
-                    <Box style={{ position: "relative" }}>
-                        <Avatar
-                            src={previewUrl || authUser?.profilePic}
-                            size={120}
-                            radius={120}
-                            style={{
-                                border: "4px solid var(--mantine-primary-color-filled)",
-                            }}
-                        />
-                        <FileButton
-                            onChange={handleImageChange}
-                            accept="image/png,image/jpeg,image/jpg"
-                        >
-                            {(props) => (
+        <PageShell onBack={() => navigate("/")}>
+            <Stack align="center" gap={6} mb="xl">
+                <Box pos="relative" mb="sm">
+                    <Avatar src={previewUrl || authUser?.profilePic} alt="" size={112} radius={112} name={authUser?.fullName} />
+                    <FileButton onChange={handleImageChange} accept="image/png,image/jpeg,image/jpg">
+                        {(props) => (
+                            <Tooltip label="Change photo">
                                 <ActionIcon
                                     {...props}
                                     size="lg"
                                     radius="xl"
                                     variant="filled"
                                     loading={isUploading}
+                                    aria-label="Change profile photo"
                                     style={{
                                         position: "absolute",
-                                        bottom: 0,
-                                        right: 0,
-                                        boxShadow: "var(--mantine-shadow-sm)",
+                                        bottom: 2,
+                                        right: 2,
+                                        border: "3px solid var(--mantine-color-body)",
                                     }}
                                 >
-                                    {!isUploading && <FiCamera size={16} />}
+                                    <CameraIcon size={16} />
                                 </ActionIcon>
-                            )}
-                        </FileButton>
-                    </Box>
+                            </Tooltip>
+                        )}
+                    </FileButton>
+                </Box>
+                <Text component="h1" ff="heading" fz={44} lh={1} m={0} ta="center">
+                    {authUser?.fullName}
+                </Text>
+                <Text c="dimmed">@{authUser?.username}</Text>
+            </Stack>
 
-                    <Stack align="center" gap={4} w="100%">
-                        <Text size="xl" fw={600}>
-                            {authUser?.fullName}
-                        </Text>
-                        <Text size="sm" c="dimmed" mb="md">
-                            @{authUser?.username}
-                        </Text>
-
-                        {loading ? (
-                            <Loader size="sm" mt="md" />
-                        ) : userDetails ? (
-                            <Paper
-                                withBorder
-                                p="md"
-                                radius="md"
-                                w="100%"
-                                bg="var(--mantine-color-default)"
-                            >
-                                <Stack gap="sm">
-                                    <Group wrap="nowrap">
-                                        <ThemeIcon
-                                            variant="light"
-                                            size="md"
-                                            radius="xl"
-                                        >
-                                            <FiUser size={14} />
-                                        </ThemeIcon>
-                                        <Box>
-                                            <Text size="xs" c="dimmed">
-                                                Full Name
-                                            </Text>
-                                            <Text size="sm" fw={500}>
-                                                {userDetails.fullName}
-                                            </Text>
-                                        </Box>
-                                    </Group>
-
-                                    <Group wrap="nowrap">
-                                        <ThemeIcon
-                                            variant="light"
-                                            size="md"
-                                            radius="xl"
-                                        >
-                                            <FiCalendar size={14} />
-                                        </ThemeIcon>
-                                        <Box>
-                                            <Text size="xs" c="dimmed">
-                                                Member Since
-                                            </Text>
-                                            <Text size="sm" fw={500}>
-                                                {new Date(
-                                                    userDetails.createdAt,
-                                                ).toLocaleDateString(
-                                                    undefined,
-                                                    {
-                                                        year: "numeric",
-                                                        month: "long",
-                                                        day: "numeric",
-                                                    },
-                                                )}
-                                            </Text>
-                                        </Box>
-                                    </Group>
-
-                                    <Group
-                                        justify="space-between"
-                                        wrap="nowrap"
-                                        mt="xs"
-                                    >
-                                        <Group wrap="nowrap">
-                                            <ThemeIcon
-                                                variant="light"
-                                                size="md"
-                                                radius="xl"
-                                                color={
-                                                    authUser?.isPublic
-                                                        ? "green"
-                                                        : "gray"
-                                                }
-                                            >
-                                                {authUser?.isPublic !==
-                                                false ? (
-                                                    <FiGlobe size={14} />
-                                                ) : (
-                                                    <FiLock size={14} />
-                                                )}
-                                            </ThemeIcon>
-                                            <Box>
-                                                <Text size="xs" c="dimmed">
-                                                    Profile Visibility
-                                                </Text>
-                                                <Text size="sm" fw={500}>
-                                                    {authUser?.isPublic !==
-                                                    false
-                                                        ? "Public"
-                                                        : "Private"}
-                                                </Text>
-                                            </Box>
-                                        </Group>
-                                        <Switch
-                                            checked={
-                                                authUser?.isPublic
-                                            }
-                                            onChange={handlePrivacyToggle}
-                                            disabled={isUpdatingPrivacy}
-                                            size="md"
-                                            color="green"
-                                        />
-                                    </Group>
-                                </Stack>
-                            </Paper>
-                        ) : null}
-                    </Stack>
+            {loading && !userDetails ? (
+                <Stack gap="sm">
+                    <Skeleton height={20} />
+                    <Skeleton height={20} />
+                    <Skeleton height={20} />
                 </Stack>
-            </Paper>
-        </Center>
+            ) : (
+                <DetailList
+                    rows={[
+                        { label: "Full name", value: userDetails?.fullName || authUser?.fullName },
+                        ...(memberSince ? [{ label: "Member since", value: memberSince }] : []),
+                        {
+                            label: "Profile",
+                            value: (
+                                <span>
+                                    {authUser?.isPublic !== false ? "Public" : "Private"}
+                                    <Text span size="sm" c="dimmed" fw={400} display="block">
+                                        {authUser?.isPublic !== false
+                                            ? "Anyone can see when you're online and call you."
+                                            : "Your online status is hidden and calls are off."}
+                                    </Text>
+                                </span>
+                            ),
+                            action: (
+                                <Switch
+                                    checked={authUser?.isPublic !== false}
+                                    onChange={handlePrivacyToggle}
+                                    disabled={isUpdatingPrivacy}
+                                    aria-label="Public profile"
+                                />
+                            ),
+                        },
+                    ]}
+                />
+            )}
+        </PageShell>
     );
 };
 

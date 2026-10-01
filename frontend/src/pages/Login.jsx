@@ -1,22 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { FiUser, FiLock } from "react-icons/fi";
-import {
-    Center,
-    Paper,
-    Title,
-    Text,
-    Button,
-    Stack,
-    TextInput,
-    PasswordInput,
-} from "@mantine/core";
+import { Button, Stack, TextInput, PasswordInput } from "@mantine/core";
 import useLogin from "../hooks/useLogin";
+import AuthLayout from "../components/AuthLayout";
 
 const Login = () => {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
-    const [showPassword, setShowPassword] = useState(false);
     const { loading, login } = useLogin();
 
     const handleSubmit = async (e) => {
@@ -31,99 +21,52 @@ const Login = () => {
     };
 
     return (
-        <Center mih="100vh" px="md">
-            <Paper withBorder shadow="md" p={30} radius="md" w="100%" maw={400}>
-                <Title order={2} ta="center" mb="xl">
-                    Login{" "}
-                    <Text span c="var(--mantine-primary-color-filled)" inherit>
-                        ChatApp
-                    </Text>
-                </Title>
-
-                <form onSubmit={handleSubmit}>
-                    <Stack gap="md">
-                        <InputField
-                            label="Username"
-                            icon={<FiUser size={14} />}
-                            value={username}
-                            onChange={setUsername}
-                            placeholder="Enter username"
-                        />
-
-                        <PasswordField
-                            label="Password"
-                            show={showPassword}
-                            onToggle={() => setShowPassword(!showPassword)}
-                            value={password}
-                            onChange={setPassword}
-                            placeholder="Enter password"
-                        />
-
-                        <Text
-                            component={Link}
-                            to="/signup"
-                            size="sm"
-                            c="dimmed"
-                            style={{
-                                "&:hover": { textDecoration: "underline" },
-                            }}
-                        >
-                            Don’t have an account?
-                        </Text>
-
-                        <Button
-                            type="submit"
-                            loading={loading}
-                            fullWidth
-                            mt="sm"
-                        >
-                            Login
-                        </Button>
-
-                        <Button
-                            type="button"
-                            variant="light"
-                            color="blue"
-                            loading={loading}
-                            fullWidth
-                            onClick={handleDemoLogin}
-                        >
-                            Try Demo Account
-                        </Button>
-                    </Stack>
-                </form>
-            </Paper>
-        </Center>
+        <AuthLayout
+            title="Welcome back"
+            subtitle="Log in to pick up where you left off."
+            aside="Your chats, groups and calls, right where you left them."
+        >
+            <form onSubmit={handleSubmit}>
+                <Stack gap="md">
+                    <TextInput
+                        label="Username"
+                        value={username}
+                        onChange={(e) => setUsername(e.currentTarget.value)}
+                        placeholder="alice"
+                        autoComplete="username"
+                        size="md"
+                        required
+                    />
+                    <PasswordInput
+                        label="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.currentTarget.value)}
+                        placeholder="Your password"
+                        autoComplete="current-password"
+                        size="md"
+                        required
+                    />
+                    <Button type="submit" loading={loading} fullWidth size="md" mt={4}>
+                        Log in
+                    </Button>
+                    <div className="auth-divider">or</div>
+                    <Button
+                        type="button"
+                        variant="default"
+                        fullWidth
+                        size="md"
+                        disabled={loading}
+                        onClick={handleDemoLogin}
+                    >
+                        Use the demo account
+                    </Button>
+                </Stack>
+            </form>
+            <p className="auth-switch">
+                New here? <Link to="/signup">Create an account</Link>
+            </p>
+        </AuthLayout>
     );
 };
-
-const InputField = ({ label, icon, value, onChange, placeholder }) => (
-    <TextInput
-        label={label}
-        leftSection={icon}
-        value={value}
-        onChange={(e) => onChange(e.currentTarget.value)}
-        placeholder={placeholder}
-    />
-);
-
-const PasswordField = ({
-    label,
-    show,
-    onToggle,
-    value,
-    onChange,
-    placeholder,
-}) => (
-    <PasswordInput
-        label={label}
-        leftSection={<FiLock size={14} />}
-        visible={show}
-        onVisibilityChange={onToggle}
-        value={value}
-        onChange={(e) => onChange(e.currentTarget.value)}
-        placeholder={placeholder}
-    />
-);
 
 export default Login;

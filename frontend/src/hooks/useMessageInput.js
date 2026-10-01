@@ -40,7 +40,7 @@ const useMessageInput = () => {
         if (isGenerating) return;
         setIsGenerating(true);
         const originalMessage = message;
-        setMessage("✨ Drafting...");
+        setMessage("Drafting a reply…");
 
         try {
             const lastMessages = messages.slice(-5).map((m) => {

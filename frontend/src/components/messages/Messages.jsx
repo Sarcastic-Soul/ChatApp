@@ -10,9 +10,8 @@ import {
     Text,
     Stack,
     Group,
-    Avatar,
-    Paper,
 } from "@mantine/core";
+import Avatar from "../Avatar";
 import useConversation from "../../zustand/useConversation";
 
 const Messages = ({ searchQuery }) => {
@@ -58,14 +57,15 @@ const Messages = ({ searchQuery }) => {
         <ScrollArea
             viewportRef={viewportRef}
             style={{ flex: 1 }}
-            p="md"
+            px="md"
+            py="sm"
             offsetScrollbars
         >
             {isLoadingMore && (
                 <Center py="xs">
-                    <Loader size="sm" type="dots" />
+                    <Loader size="sm" type="dots" color="gray" />
                     <Text size="sm" c="dimmed" ml="xs">
-                        Loading more messages...
+                        Loading older messages
                     </Text>
                 </Center>
             )}
@@ -100,9 +100,9 @@ const Messages = ({ searchQuery }) => {
             {!loading &&
                 messages?.length > 0 &&
                 filteredMessages.length === 0 && (
-                    <Center h="100%">
+                    <Center mih={240}>
                         <Text c="dimmed">
-                            No messages found matching "{searchQuery}".
+                            No messages match "{searchQuery}".
                         </Text>
                     </Center>
                 )}
@@ -111,17 +111,22 @@ const Messages = ({ searchQuery }) => {
                 messages &&
                 Array.isArray(messages) &&
                 messages.length === 0 && (
-                    <Center h="100%">
-                        <Text c="dimmed">
-                            Send a message to start the conversation.
-                        </Text>
+                    <Center mih={320}>
+                        <Stack gap={4} align="center">
+                            <Text ff="heading" fz={30} lh={1.1}>
+                                No messages yet
+                            </Text>
+                            <Text c="dimmed" size="sm">
+                                Say hello below to start the conversation.
+                            </Text>
+                        </Stack>
                     </Center>
                 )}
 
             {typingUsers.length > 0 && (
                 <Stack gap="xs" mt="sm" ref={lastMessageRef}>
                     {typingUsers.map((typingUserId) => {
-                        let profilePic = "/default-avatar.png";
+                        let profilePic = null;
 
                         if (selectedConversation?.isGroupChat) {
                             const participant =
@@ -144,19 +149,17 @@ const Messages = ({ searchQuery }) => {
                             >
                                 <Avatar
                                     src={profilePic}
+                                    alt=""
                                     radius="xl"
-                                    size="md"
+                                    size={30}
                                 />
-                                <Paper
-                                    p="sm"
-                                    radius="lg"
-                                    bg="light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-6))"
+                                <div
+                                    className="bubble bubble-them"
+                                    aria-label="Typing"
                                     style={{
-                                        borderBottomLeftRadius: 4,
                                         display: "flex",
                                         alignItems: "center",
-                                        justifyContent: "center",
-                                        height: 38,
+                                        height: 36,
                                     }}
                                 >
                                     <Loader
@@ -164,7 +167,7 @@ const Messages = ({ searchQuery }) => {
                                         type="dots"
                                         color="gray"
                                     />
-                                </Paper>
+                                </div>
                             </Group>
                         );
                     })}

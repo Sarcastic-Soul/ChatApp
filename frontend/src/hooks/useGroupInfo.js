@@ -97,7 +97,7 @@ const useGroupInfo = () => {
             }));
 
             notifications.show({
-                message: "Group icon updated successfully",
+                message: "Group photo updated",
                 color: "green",
             });
         } catch (error) {

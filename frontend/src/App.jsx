@@ -16,15 +16,8 @@ function App() {
     const { authUser } = useAuthContext();
 
     return (
-        <Box
-            style={{
-                minHeight: "100vh",
-                // Provides a slightly tinted background depending on light/dark mode
-                backgroundColor:
-                    "light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-8))",
-            }}
-        >
-            <Suspense fallback={<Center h="100vh"><Loader size="lg" variant="dots" /></Center>}>
+        <Box style={{ minHeight: "100dvh" }}>
+            <Suspense fallback={<Center h="100dvh"><Loader size="md" type="dots" color="gray" /></Center>}>
             <Routes>
                 <Route path="/" element={authUser ? <Home /> : <Landing />} />
                 <Route

@@ -29,3 +29,17 @@ export function extractTime(dateString) {
 function padZero(number) {
     return number.toString().padStart(2, "0");
 }
+
+// Short label for the conversation list: "14:05", "Yesterday", "Mon", "12 Sep"
+export function extractListTime(dateString) {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const now = new Date();
+    const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const days = Math.round((startOfDay(now) - startOfDay(date)) / 86400000);
+
+    if (days <= 0) return `${padZero(date.getHours())}:${padZero(date.getMinutes())}`;
+    if (days === 1) return "Yesterday";
+    if (days < 7) return date.toLocaleDateString(undefined, { weekday: "short" });
+    return date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { Modal, Stack, Text, Group, Avatar, Button, TextInput, ScrollArea } from "@mantine/core";
-import { FiSearch, FiSend } from "react-icons/fi";
+import { useState, useEffect } from "react";
+import { Modal, Stack, Text, Button, TextInput, ScrollArea, UnstyledButton } from "@mantine/core";
+import Avatar from "../Avatar";
+import { MagnifyingGlassIcon, ArrowBendUpRightIcon } from "@phosphor-icons/react";
 import useConversation from "../../zustand/useConversation";
 import useForwardMessage from "../../hooks/useForwardMessage";
 
@@ -35,44 +36,43 @@ const ForwardModal = () => {
         <Modal
             opened={!!forwardingMessage}
             onClose={() => setForwardingMessage(null)}
-            title="Forward Message"
+            title="Forward message"
             centered
         >
             <Stack>
                 <TextInput
-                    placeholder="Search conversations..."
-                    leftSection={<FiSearch size={14} />}
+                    placeholder="Search chats"
+                    aria-label="Search chats"
+                    leftSection={<MagnifyingGlassIcon size={16} />}
                     value={search}
                     onChange={(e) => setSearch(e.currentTarget.value)}
-                    variant="filled"
                 />
 
                 <ScrollArea h={300} offsetScrollbars>
-                    <Stack gap="sm">
+                    <Stack gap={2}>
                         {filteredConversations.length > 0 ? (
                             filteredConversations.map((conv) => (
-                                <Group
+                                <UnstyledButton
                                     key={conv._id}
-                                    p="sm"
-                                    style={{
-                                        cursor: "pointer",
-                                        borderRadius: "8px",
-                                        backgroundColor: selectedConvId === (conv.participantId || conv._id)
-                                            ? "var(--mantine-primary-color-light)"
-                                            : "transparent",
-                                        transition: "background-color 0.2s ease"
-                                    }}
+                                    className="row-button"
+                                    data-active={selectedConvId === (conv.participantId || conv._id)}
+                                    aria-pressed={selectedConvId === (conv.participantId || conv._id)}
                                     onClick={() => setSelectedConvId(conv.participantId || conv._id)}
                                 >
-                                    <Avatar src={conv.profilePic || conv.groupIcon} radius="xl" />
+                                    <Avatar
+                                        src={conv.profilePic || conv.groupIcon}
+                                        name={conv.isGroupChat ? conv.groupName : conv.fullName}
+                                        alt=""
+                                        radius="xl"
+                                    />
                                     <Text fw={500} size="sm">
                                         {conv.isGroupChat ? conv.groupName : conv.fullName}
                                     </Text>
-                                </Group>
+                                </UnstyledButton>
                             ))
                         ) : (
                             <Text c="dimmed" ta="center" mt="md">
-                                No conversations found.
+                                No chats match that name.
                             </Text>
                         )}
                     </Stack>
@@ -82,7 +82,7 @@ const ForwardModal = () => {
                     fullWidth
                     disabled={!selectedConvId || loading}
                     loading={loading}
-                    leftSection={<FiSend size={16} />}
+                    leftSection={<ArrowBendUpRightIcon size={16} />}
                     onClick={handleForward}
                 >
                     Forward

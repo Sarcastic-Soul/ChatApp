@@ -6,80 +6,62 @@ import ProfileButton from "./ProfileButton";
 import CreateGroupModal from "./CreateGroupModal";
 import StartChatModal from "../modals/StartChatModal";
 import ThemeToggle from "../ThemeToggle";
-import { FiPlus, FiMessageSquare, FiUsers } from "react-icons/fi";
-import {
-    Stack,
-    Group,
-    Divider,
-    ActionIcon,
-    Menu,
-    Box,
-} from "@mantine/core";
+import { PlusIcon, ChatCircleTextIcon, UsersThreeIcon } from "@phosphor-icons/react";
+import { Stack, Group, ActionIcon, Menu, Tooltip } from "@mantine/core";
 
 const Sidebar = () => {
     const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
     const [isStartChatModalOpen, setIsStartChatModalOpen] = useState(false);
 
     return (
-        <Stack
-            h="100%"
-            p="md"
-            gap="sm"
-            style={{ backgroundColor: "var(--mantine-color-body)" }}
-        >
-            <Group wrap="nowrap" gap="sm">
-                <Box style={{ flex: 1 }}>
-                    <SearchInput />
-                </Box>
-                <Menu shadow="md" width={200} position="bottom-end">
+        <Stack h="100%" p="md" gap="md" component="nav" aria-label="Chats">
+            <Group justify="space-between" wrap="nowrap">
+                <span className="wordmark" style={{ fontSize: 26 }}>
+                    Chat<em>App</em>
+                </span>
+                <Menu width={200} position="bottom-end">
                     <Menu.Target>
-                        <ActionIcon
-                            variant="filled"
-                            size={42}
-                            radius="xl"
-                            title="Create New"
-                        >
-                            <FiPlus size={22} />
-                        </ActionIcon>
+                        <Tooltip label="New chat or group">
+                            <ActionIcon variant="filled" size="lg" aria-label="New chat or group">
+                                <PlusIcon size={18} weight="bold" />
+                            </ActionIcon>
+                        </Tooltip>
                     </Menu.Target>
                     <Menu.Dropdown>
-                        <Menu.Label>Create</Menu.Label>
                         <Menu.Item
-                            leftSection={<FiMessageSquare size={16} />}
+                            leftSection={<ChatCircleTextIcon size={16} />}
                             onClick={() => setIsStartChatModalOpen(true)}
                         >
-                            New Chat
+                            New chat
                         </Menu.Item>
                         <Menu.Item
-                            leftSection={<FiUsers size={16} />}
+                            leftSection={<UsersThreeIcon size={16} />}
                             onClick={() => setIsGroupModalOpen(true)}
                         >
-                            New Group
+                            New group
                         </Menu.Item>
                     </Menu.Dropdown>
                 </Menu>
             </Group>
-            <Divider />
+
+            <SearchInput />
 
             <Conversations />
 
-            <Group justify="space-between" align="center" mt="auto" pt="sm">
-                <Group gap="md">
-                    <LogoutButton />
-                    <ProfileButton />
-                </Group>
-
+            <Group
+                gap={4}
+                wrap="nowrap"
+                pt="sm"
+                mx={-6}
+                style={{ borderTop: "1px solid var(--line)" }}
+            >
+                <ProfileButton />
                 <ThemeToggle />
+                <LogoutButton />
             </Group>
 
-            {isGroupModalOpen && (
-                <CreateGroupModal onClose={() => setIsGroupModalOpen(false)} />
-            )}
-            {isStartChatModalOpen && (
-                <StartChatModal
-                    onClose={() => setIsStartChatModalOpen(false)}
-                />
-            )}
+            {isGroupModalOpen && <CreateGroupModal onClose={() => setIsGroupModalOpen(false)} />}
+            {isStartChatModalOpen && <StartChatModal onClose={() => setIsStartChatModalOpen(false)} />}
         </Stack>
     );
 };

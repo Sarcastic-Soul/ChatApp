@@ -1,18 +1,19 @@
 import { useState, useEffect } from "react";
 import { notifications } from "@mantine/notifications";
 import useConversation from "../../zustand/useConversation";
+import { MagnifyingGlassIcon } from "@phosphor-icons/react";
 import {
     Modal,
     TextInput,
     ScrollArea,
     UnstyledButton,
     Group,
-    Avatar,
     Text,
     Button,
     Center,
     Loader,
 } from "@mantine/core";
+import Avatar from "../Avatar";
 
 const StartChatModal = ({ onClose }) => {
     const [users, setUsers] = useState([]);
@@ -58,11 +59,14 @@ const StartChatModal = ({ onClose }) => {
         <Modal
             opened={true}
             onClose={onClose}
-            title={<Text fw={600}>Start New Chat</Text>}
+            title="New chat"
             centered
         >
             <TextInput
-                placeholder="Search for someone..."
+                placeholder="Search people"
+                aria-label="Search people"
+                leftSection={<MagnifyingGlassIcon size={16} />}
+                data-autofocus
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.currentTarget.value)}
                 mb="md"
@@ -71,36 +75,24 @@ const StartChatModal = ({ onClose }) => {
             <ScrollArea h={300} type="auto" offsetScrollbars>
                 {loading ? (
                     <Center h={100}>
-                        <Loader size="sm" />
+                        <Loader size="sm" color="gray" />
                     </Center>
                 ) : filteredUsers.length > 0 ? (
                     filteredUsers.map((user) => (
                         <UnstyledButton
                             key={user._id}
+                            className="row-button"
                             onClick={() => handleSelectUser(user)}
-                            w="100%"
-                            p="sm"
-                            style={(theme) => ({
-                                borderRadius: theme.radius.md,
-                                "&:hover": {
-                                    backgroundColor:
-                                        "var(--mantine-color-default-hover)",
-                                },
-                            })}
                         >
-                            <Group gap="sm">
-                                <Avatar
-                                    src={user.profilePic}
-                                    radius="xl"
-                                    size="md"
-                                />
-                                <Text fw={500}>{user.fullName}</Text>
-                            </Group>
+                            <Avatar src={user.profilePic} name={user.fullName} alt="" radius="xl" />
+                            <Text fw={500} size="sm">
+                                {user.fullName}
+                            </Text>
                         </UnstyledButton>
                     ))
                 ) : (
                     <Text ta="center" c="dimmed" py="md">
-                        No users found.
+                        Nobody new to chat with. Everyone already has a chat with you.
                     </Text>
                 )}
             </ScrollArea>

@@ -6,13 +6,14 @@ import {
     ScrollArea,
     Checkbox,
     Group,
-    Avatar,
+    UnstyledButton,
     Text,
     Button,
     Center,
     Loader,
     Stack,
 } from "@mantine/core";
+import Avatar from "../Avatar";
 
 const CreateGroupModal = ({ onClose }) => {
     const [groupName, setGroupName] = useState("");
@@ -56,7 +57,7 @@ const CreateGroupModal = ({ onClose }) => {
         if (!groupName.trim() || selectedUsers.length === 0) {
             notifications.show({
                 message:
-                    "Please provide a group name and select at least one user.",
+                    "Give the group a name and pick at least one person.",
                 color: "red",
             });
             return;
@@ -78,7 +79,7 @@ const CreateGroupModal = ({ onClose }) => {
             if (data.error) throw new Error(data.error);
 
             notifications.show({
-                message: "Group created successfully!",
+                message: "Group created",
                 color: "green",
             });
             onClose();
@@ -99,19 +100,21 @@ const CreateGroupModal = ({ onClose }) => {
         <Modal
             opened={true}
             onClose={onClose}
-            title={<Text fw={600}>Create New Group</Text>}
+            title="New group"
             centered
         >
             <Stack gap="md">
                 <TextInput
-                    label="Group Name"
-                    placeholder="Enter group name"
+                    label="Group name"
+                    placeholder="Weekend trip"
+                    data-autofocus
                     value={groupName}
                     onChange={(e) => setGroupName(e.currentTarget.value)}
                     required
                 />
                 <TextInput
-                    placeholder="Search for users..."
+                    label={`Members${selectedUsers.length ? ` (${selectedUsers.length} picked)` : ""}`}
+                    placeholder="Search people"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.currentTarget.value)}
                 />
@@ -119,22 +122,15 @@ const CreateGroupModal = ({ onClose }) => {
                 <ScrollArea h={250} type="auto" offsetScrollbars>
                     {loading ? (
                         <Center h={100}>
-                            <Loader size="sm" />
+                            <Loader size="sm" color="gray" />
                         </Center>
                     ) : filteredUsers.length > 0 ? (
                         filteredUsers.map((user) => (
-                            <Group
+                            <UnstyledButton
                                 key={user._id}
-                                p="xs"
-                                wrap="nowrap"
-                                style={(theme) => ({
-                                    cursor: "pointer",
-                                    borderRadius: theme.radius.md,
-                                    "&:hover": {
-                                        backgroundColor:
-                                            "var(--mantine-color-default-hover)",
-                                    },
-                                })}
+                                className="row-button"
+                                data-active={selectedUsers.includes(user._id)}
+                                aria-pressed={selectedUsers.includes(user._id)}
                                 onClick={() => handleUserSelection(user._id)}
                             >
                                 <Checkbox
@@ -143,13 +139,11 @@ const CreateGroupModal = ({ onClose }) => {
                                     tabIndex={-1}
                                     style={{ pointerEvents: "none" }}
                                 />
-                                <Avatar
-                                    src={user.profilePic}
-                                    radius="xl"
-                                    size="md"
-                                />
-                                <Text fw={500}>{user.fullName}</Text>
-                            </Group>
+                                <Avatar src={user.profilePic} name={user.fullName} alt="" radius="xl" />
+                                <Text fw={500} size="sm">
+                                    {user.fullName}
+                                </Text>
+                            </UnstyledButton>
                         ))
                     ) : (
                         <Text ta="center" c="dimmed" py="md">
@@ -162,7 +156,7 @@ const CreateGroupModal = ({ onClose }) => {
                     <Button variant="default" onClick={onClose}>
                         Cancel
                     </Button>
-                    <Button onClick={handleCreateGroup}>Create</Button>
+                    <Button onClick={handleCreateGroup}>Create group</Button>
                 </Group>
             </Stack>
         </Modal>

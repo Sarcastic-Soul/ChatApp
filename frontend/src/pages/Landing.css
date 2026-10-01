@@ -1,0 +1,309 @@
+.landing {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 24px;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+}
+
+.landing main {
+    flex: 1;
+}
+
+.landing-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0;
+    gap: 16px;
+}
+
+.wordmark.small {
+    font-size: 22px;
+}
+
+.nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 14px;
+    text-decoration: none;
+    transition: color 150ms ease;
+}
+
+.nav-link:hover {
+    color: var(--ink);
+}
+
+.status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--mantine-color-gray-5);
+}
+
+.status[data-status="online"] .status-dot {
+    background: var(--mantine-primary-color-filled);
+}
+
+.status[data-status="offline"] .status-dot {
+    background: var(--mantine-color-red-6);
+}
+
+.hero {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 56px;
+    align-items: center;
+    padding: 56px 0 104px;
+}
+
+.hero-title {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(52px, 7vw, 96px);
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    margin: 0 0 28px;
+    text-wrap: initial;
+}
+
+.hero-title em {
+    color: var(--accent-text);
+}
+
+.hero-lede {
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--muted);
+    max-width: 32em;
+    margin: 0 0 32px;
+}
+
+.hero-note {
+    margin: 14px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.preview {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 30px 60px -30px var(--shadow-tint);
+    overflow: hidden;
+}
+
+.preview-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+}
+
+.preview-head strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.preview-head small {
+    color: var(--accent-text);
+    font-size: 12px;
+}
+
+.preview-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--bubble-them);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.preview-body {
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 290px;
+}
+
+.preview-body .bubble {
+    max-width: 78%;
+    font-size: 14px;
+}
+
+.preview-meta {
+    align-self: flex-end;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: -4px;
+}
+
+.preview-meta svg {
+    color: var(--accent-text);
+}
+
+.preview-typing {
+    font-size: 12px;
+    font-style: italic;
+    color: var(--muted);
+}
+
+.preview-input {
+    padding: 12px 18px;
+    border-top: 1px solid var(--line);
+}
+
+.preview-input span {
+    display: block;
+    padding: 10px 16px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.features {
+    border-top: 1px solid var(--ink);
+    padding: 56px 0 72px;
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 48px;
+}
+
+.features h2 {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-weight: 400;
+    font-size: 46px;
+    line-height: 1;
+    margin: 0;
+}
+
+.features ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: feature;
+}
+
+.features li {
+    display: grid;
+    grid-template-columns: 52px 220px 1fr;
+    gap: 16px;
+    align-items: baseline;
+    padding: 18px 0;
+    border-bottom: 1px solid var(--line);
+    counter-increment: feature;
+}
+
+.features li::before {
+    content: counter(feature, decimal-leading-zero);
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 24px;
+    color: var(--accent-text);
+}
+
+.features li strong {
+    font-weight: 600;
+}
+
+.features li span {
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.landing-stack {
+    padding: 0 0 88px 308px;
+}
+
+.landing-stack p {
+    margin: 0;
+    max-width: 38em;
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 26px;
+    line-height: 1.3;
+}
+
+.landing-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 0 32px;
+    border-top: 1px solid var(--line);
+}
+
+@media (max-width: 860px) {
+    .hero,
+    .features {
+        grid-template-columns: 1fr;
+        gap: 32px;
+    }
+
+    .hero {
+        padding: 24px 0 64px;
+    }
+
+    .hero-preview {
+        transform: none !important;
+    }
+
+    .features li {
+        grid-template-columns: 40px 1fr;
+        gap: 4px 12px;
+    }
+
+    .features li span {
+        grid-column: 2;
+    }
+
+    .landing-stack {
+        padding-left: 0;
+    }
+
+    .landing-stack p {
+        font-size: 22px;
+    }
+}
+
+@media (max-width: 560px) {
+    .landing {
+        padding: 0 16px;
+    }
+
+    .hide-sm {
+        display: none;
+    }
+
+    /* Keep the words for screen readers, show only the dot */
+    .status-text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .landing-nav {
+        gap: 8px;
+    }
+}

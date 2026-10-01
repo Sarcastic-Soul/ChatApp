@@ -3,8 +3,9 @@ import react from "@vitejs/plugin-react";
 
 const vendorGroups = [
     { name: "react", test: /node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/ },
+    { name: "motion", test: /node_modules[\\/](motion|framer-motion|motion-dom|motion-utils)[\\/]/ },
     { name: "mantine", test: /node_modules[\\/]@mantine[\\/]/ },
-    { name: "ui", test: /node_modules[\\/]emoji-picker-react[\\/]/ },
+    { name: "emoji", test: /node_modules[\\/]emoji-picker-react[\\/]/ },
     { name: "socket", test: /node_modules[\\/](socket\.io-client|engine\.io-client|socket\.io-parser|engine\.io-parser)[\\/]/ },
 ];
 

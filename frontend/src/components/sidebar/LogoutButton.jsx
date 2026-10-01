@@ -1,22 +1,23 @@
-import { FiLogOut } from "react-icons/fi";
+import { SignOutIcon } from "@phosphor-icons/react";
 import useLogout from "../../hooks/useLogout";
-import { ActionIcon } from "@mantine/core";
+import { ActionIcon, Tooltip } from "@mantine/core";
 
 const LogoutButton = () => {
     const { loading, logout } = useLogout();
 
     return (
-        <ActionIcon
-            variant="subtle"
-            color="red"
-            size="lg"
-            radius="xl"
-            loading={loading}
-            onClick={logout}
-            title="Logout"
-        >
-            <FiLogOut size={22} />
-        </ActionIcon>
+        <Tooltip label="Log out">
+            <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="lg"
+                loading={loading}
+                onClick={logout}
+                aria-label="Log out"
+            >
+                <SignOutIcon size={20} />
+            </ActionIcon>
+        </Tooltip>
     );
 };
 

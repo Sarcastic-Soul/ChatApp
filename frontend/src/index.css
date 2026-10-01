@@ -1,21 +1,284 @@
+:root,
+[data-mantine-color-scheme="light"] {
+    --paper: #f5f1e8;
+    --surface: #fbf9f4;
+    --surface-sunk: #ede7db;
+    --line: #ddd5c5;
+    --ink: #1f1d19;
+    --muted: #6b655a;
+    --bubble-them: #ebe5d8;
+    --shadow-tint: rgba(40, 30, 10, 0.28);
+    /* Accent used for text and focus rings, readable on the page background */
+    --accent-text: var(--mantine-primary-color-6);
+}
+
+[data-mantine-color-scheme="dark"] {
+    --paper: #171512;
+    --surface: #1e1b17;
+    --surface-sunk: #14120f;
+    --line: #38332c;
+    --ink: #ebe4d8;
+    --muted: #a59c8d;
+    --bubble-them: #2a2621;
+    --shadow-tint: rgba(0, 0, 0, 0.5);
+    --accent-text: var(--mantine-primary-color-3);
+}
+
 body,
 html,
 #root {
     margin: 0;
     padding: 0;
-    min-height: 100vh;
+    min-height: 100dvh;
 }
 
 body {
     background-color: var(--mantine-color-body);
     color: var(--mantine-color-text);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+    text-wrap: balance;
+}
+
+p {
+    text-wrap: pretty;
+}
+
+::selection {
+    background: var(--mantine-primary-color-light);
+}
+
+.wordmark {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: 30px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    text-decoration: none;
+}
+
+.wordmark em {
+    color: var(--accent-text);
+}
+
+.skip-link {
+    position: absolute;
+    left: 12px;
+    top: -48px;
+    z-index: 2000;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: var(--ink);
+    color: var(--paper);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.skip-link:focus {
+    top: 12px;
+}
+
+/* Clickable list rows: conversations, user pickers */
+.row-button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: var(--mantine-radius-md);
+    transition: background-color 150ms ease;
+    cursor: pointer;
+}
+
+.row-button:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.row-button[data-active="true"] {
+    background-color: var(--mantine-primary-color-light);
+}
+
+.row-button:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+}
+
+/* Drag handle between the sidebar and the chat */
+.resize-handle {
+    width: 1px;
+    flex-shrink: 0;
+    background: var(--line);
+    cursor: col-resize;
+    position: relative;
+    z-index: 10;
+}
+
+.resize-handle::after {
+    content: "";
+    position: absolute;
+    inset: 0 -4px;
+}
+
+.resize-handle:hover {
+    background: var(--mantine-primary-color-filled);
+}
+
+/* Pressed feedback on buttons */
+.mantine-Button-root:active:not(:disabled),
+.mantine-ActionIcon-root:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+/* Message bubbles */
+.bubble {
+    padding: 9px 13px;
+    border-radius: 16px;
+    font-size: 0.9375rem;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.bubble-them {
+    background: var(--bubble-them);
+    color: var(--mantine-color-text);
+    border-bottom-left-radius: 5px;
+}
+
+.bubble-me {
+    background: var(--mantine-primary-color-filled);
+    color: var(--mantine-primary-color-contrast);
+    border-bottom-right-radius: 5px;
+}
+
+.bubble-quote {
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    border-radius: 8px;
+    background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+/* Hover toolbar next to a message. Always shown on touch screens. */
+.message-column {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-width: min(75%, 560px);
+    min-width: 0;
+}
+
+@media (max-width: 480px) {
+    .message-column {
+        max-width: 82%;
+    }
+}
+
+/* The toolbar sits beside the bubble without taking its width */
+.bubble-line {
+    position: relative;
+    max-width: 100%;
+}
+
+.bubble-line .message-tools {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.bubble-line[data-from="me"] .message-tools {
+    right: calc(100% + 4px);
+}
+
+.bubble-line[data-from="them"] .message-tools {
+    left: calc(100% + 4px);
+}
+
+.message-row {
+    outline: none;
+}
+
+.message-row .message-tools {
+    opacity: 0;
+    transition: opacity 150ms ease;
+}
+
+.message-row:hover .message-tools,
+.message-row:focus-within .message-tools {
+    opacity: 1;
+}
+
+/* Touch screens: tap a message to show its tools, floating above the bubble */
+@media (hover: none) {
+    .message-row .message-tools {
+        pointer-events: none;
+    }
+
+    .message-row:focus-within .message-tools {
+        pointer-events: auto;
+    }
+
+    .bubble-line .message-tools {
+        top: auto;
+        bottom: calc(100% + 4px);
+        transform: none;
+        z-index: 2;
+        padding: 2px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface);
+        box-shadow: 0 4px 12px var(--shadow-tint);
+    }
+
+    .bubble-line[data-from="me"] .message-tools {
+        right: 0;
+    }
+
+    .bubble-line[data-from="them"] .message-tools {
+        left: 0;
+    }
+}
+
+/* Centered event line: calls and group changes */
+.event-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 0.8125rem;
+}
+
+.event-line[data-missed="true"] {
+    color: var(--mantine-color-red-7);
+    border-color: color-mix(in srgb, var(--mantine-color-red-7) 35%, transparent);
+}
+
+[data-mantine-color-scheme="dark"] .event-line[data-missed="true"] {
+    color: var(--mantine-color-red-4);
+}
+
+.tabular {
+    font-variant-numeric: tabular-nums;
 }
 
 /* New incoming message nudge */
 @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-3px); }
-    75% { transform: translateX(3px); }
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+    25% {
+        transform: translateX(-3px);
+    }
+    75% {
+        transform: translateX(3px);
+    }
 }
 
 .shake {
@@ -23,18 +286,31 @@ body {
 }
 
 /* Reaction pill pop when a reaction is added */
-@keyframes bounce-reaction {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.25); }
+@keyframes pop-reaction {
+    0%,
+    100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
 }
 
-.animate-bounce-reaction {
-    animation: bounce-reaction 0.35s ease-out;
+.reaction-pop {
+    animation: pop-reaction 0.3s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
     .shake,
-    .animate-bounce-reaction {
+    .reaction-pop {
         animation: none;
+    }
+}
+
+/* Bigger icon buttons for fingers */
+@media (pointer: coarse) {
+    .mantine-ActionIcon-root {
+        --ai-size-md: 2.25rem;
+        --ai-size-lg: 2.75rem;
     }
 }

@@ -5,26 +5,26 @@ import MessageInput from "./MessageInput";
 import Messages from "./Messages";
 import ForwardModal from "./ForwardModal";
 import {
-    FiMessageSquare,
-    FiVideo,
-    FiPhone,
-    FiArrowLeft,
-    FiSearch,
-} from "react-icons/fi";
+    VideoCameraIcon,
+    PhoneIcon,
+    ArrowLeftIcon,
+    MagnifyingGlassIcon,
+} from "@phosphor-icons/react";
 import { useAuthContext } from "../../context/AuthContext";
 import { useSocketContext } from "../../context/SocketContext";
 import { useCallContext } from "../../context/CallContext";
 import {
     Flex,
     Group,
-    Avatar,
     Text,
     ActionIcon,
-    Center,
-    Stack,
     TextInput,
     Box,
+    UnstyledButton,
+    Tooltip,
+    CloseButton,
 } from "@mantine/core";
+import Avatar from "../Avatar";
 import { useMediaQuery } from "@mantine/hooks";
 
 const MessageContainer = () => {
@@ -35,10 +35,6 @@ const MessageContainer = () => {
     const navigate = useNavigate();
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-
-    const handleSearch = (e) => {
-        setSearchQuery(e.currentTarget.value);
-    };
 
     const isOnline =
         selectedConversation &&
@@ -51,8 +47,13 @@ const MessageContainer = () => {
         ? selectedConversation.groupName
         : selectedConversation?.fullName;
 
-    const displayPic =
-        selectedConversation?.profilePic || "/default-avatar.png";
+    const statusLine = selectedConversation?.isGroupChat
+        ? `${selectedConversation.participants?.length || 0} members`
+        : selectedConversation?.isPublic
+          ? isOnline
+              ? "Online"
+              : "Offline"
+          : null;
 
     const handleHeaderClick = () => {
         if (selectedConversation?.isGroupChat) {
@@ -65,6 +66,13 @@ const MessageContainer = () => {
         }
     };
 
+    const closeSearch = () => {
+        setShowSearch(false);
+        setSearchQuery("");
+    };
+
+    const callTarget = selectedConversation?.participantId || selectedConversation?._id;
+
     return (
         <Flex direction="column" h="100%">
             {!selectedConversation ? (
@@ -73,107 +81,99 @@ const MessageContainer = () => {
                 <>
                     <Group
                         justify="space-between"
-                        p="md"
-                        style={{
-                            borderBottom:
-                                "1px solid var(--mantine-color-default-border)",
-                        }}
+                        wrap="nowrap"
+                        px="md"
+                        py={10}
+                        style={{ borderBottom: "1px solid var(--line)" }}
                     >
-                        <Group gap="xs">
+                        <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
                             {isMobile && (
                                 <ActionIcon
                                     variant="subtle"
-                                    onClick={() =>
-                                        setSelectedConversation(null)
-                                    }
+                                    color="gray"
+                                    onClick={() => setSelectedConversation(null)}
                                     size="lg"
+                                    aria-label="Back to chats"
                                 >
-                                    <FiArrowLeft size={20} />
+                                    <ArrowLeftIcon size={20} />
                                 </ActionIcon>
                             )}
-                            <Group
+                            <UnstyledButton
+                                className="row-button"
                                 onClick={handleHeaderClick}
-                                style={{ cursor: "pointer" }}
+                                style={{ padding: "4px 8px", minWidth: 0 }}
+                                aria-label={`Open details for ${displayName}`}
                             >
-                                <Avatar
-                                    src={displayPic}
-                                    radius="xl"
-                                    size="md"
-                                />
-                                <Stack gap={0}>
-                                    <Text fw={600} size="md">
+                                <Avatar src={selectedConversation.profilePic} alt="" radius="xl" size={38} name={displayName} />
+                                <div style={{ minWidth: 0 }}>
+                                    <Text component="h1" fw={600} size="sm" m={0} truncate>
                                         {displayName}
                                     </Text>
-                                    {!selectedConversation.isGroupChat &&
-                                        selectedConversation.isPublic && (
-                                            <Text
-                                                size="xs"
-                                                c={
-                                                    isOnline
-                                                        ? "green"
-                                                        : "dimmed"
-                                                }
-                                            >
-                                                {isOnline
-                                                    ? "Online"
-                                                    : "Offline"}
-                                            </Text>
-                                        )}
-                                </Stack>
-                            </Group>
+                                    {statusLine && (
+                                        <Text
+                                            size="xs"
+                                            c={isOnline ? "var(--accent-text)" : "dimmed"}
+                                        >
+                                            {statusLine}
+                                        </Text>
+                                    )}
+                                </div>
+                            </UnstyledButton>
                         </Group>
-                        <Group gap="sm">
-                            <ActionIcon
-                                variant="subtle"
-                                radius="xl"
-                                size="lg"
-                                onClick={() => setShowSearch(!showSearch)}
-                            >
-                                <FiSearch size={20} />
-                            </ActionIcon>
-                            
-                            {!selectedConversation.isGroupChat && (
-                                <Group gap="xs">
-                                    <ActionIcon
-                                        variant="light"
-                                        radius="xl"
-                                        size="lg"
-                                        onClick={() => callUser(selectedConversation.participantId || selectedConversation._id, "audio")}
-                                        color="teal"
-                                        title="Audio Call"
-                                    >
-                                        <FiPhone size={20} />
-                                    </ActionIcon>
-                                    <ActionIcon
-                                        variant="light"
-                                        radius="xl"
-                                        size="lg"
-                                        onClick={() => callUser(selectedConversation.participantId || selectedConversation._id, "video")}
-                                        color="teal"
-                                        title="Video Call"
-                                    >
-                                        <FiVideo size={20} />
-                                    </ActionIcon>
-                                </Group>
-                            )}
 
+                        <Group gap={4} wrap="nowrap">
+                            <Tooltip label="Search in chat">
+                                <ActionIcon
+                                    variant={showSearch ? "light" : "subtle"}
+                                    color={showSearch ? undefined : "gray"}
+                                    size="lg"
+                                    onClick={() => (showSearch ? closeSearch() : setShowSearch(true))}
+                                    aria-label="Search in chat"
+                                    aria-pressed={showSearch}
+                                >
+                                    <MagnifyingGlassIcon size={20} />
+                                </ActionIcon>
+                            </Tooltip>
+
+                            {!selectedConversation.isGroupChat && (
+                                <>
+                                    <Tooltip label="Voice call">
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            size="lg"
+                                            onClick={() => callUser(callTarget, "audio")}
+                                            aria-label="Voice call"
+                                        >
+                                            <PhoneIcon size={20} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                    <Tooltip label="Video call">
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            size="lg"
+                                            onClick={() => callUser(callTarget, "video")}
+                                            aria-label="Video call"
+                                        >
+                                            <VideoCameraIcon size={20} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </>
+                            )}
                         </Group>
                     </Group>
 
                     {showSearch && (
-                        <Box
-                            p="xs"
-                            style={{
-                                borderBottom:
-                                    "1px solid var(--mantine-color-default-border)",
-                            }}
-                        >
+                        <Box px="md" py={8} style={{ borderBottom: "1px solid var(--line)" }}>
                             <TextInput
-                                placeholder="Search in chat..."
+                                placeholder="Search in this chat"
+                                aria-label="Search in this chat"
                                 value={searchQuery}
-                                onChange={handleSearch}
-                                rightSection={<FiSearch size={16} />}
-                                radius="xl"
+                                onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                                onKeyDown={(e) => e.key === "Escape" && closeSearch()}
+                                leftSection={<MagnifyingGlassIcon size={16} />}
+                                rightSection={<CloseButton size="sm" aria-label="Close search" onClick={closeSearch} />}
                                 size="sm"
                                 autoFocus
                             />
@@ -193,24 +193,25 @@ export default MessageContainer;
 
 const NoChatSelected = () => {
     const { authUser } = useAuthContext();
+    const firstName = authUser?.fullName?.split(" ")[0] || "there";
+
     return (
-        <Center h="100%" w="100%">
-            <Stack align="center" gap="sm">
-                <Text size="xl" fw={600} ta="center">
-                    Welcome 👋 {authUser.fullName}
+        <Flex h="100%" align="center" justify="center" p="xl">
+            <div style={{ maxWidth: 420 }}>
+                <Text
+                    component="h1"
+                    ff="heading"
+                    fz={52}
+                    lh={1}
+                    m={0}
+                    mb="sm"
+                >
+                    Hi, {firstName}.
                 </Text>
-                <Text size="md" ta="center" c="dimmed">
-                    Select a conversation from the sidebar to start messaging
+                <Text c="dimmed" size="lg">
+                    Pick a chat on the left, or press + to start a new chat or group.
                 </Text>
-                <FiMessageSquare
-                    size={50}
-                    style={{
-                        color: "var(--mantine-primary-color-light-color)",
-                        opacity: 0.6,
-                        marginTop: 10,
-                    }}
-                />
-            </Stack>
-        </Center>
+            </div>
+        </Flex>
     );
 };

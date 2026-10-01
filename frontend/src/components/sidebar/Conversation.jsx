@@ -1,15 +1,10 @@
 import { useSocketContext } from "../../context/SocketContext";
 import useConversation from "../../zustand/useConversation";
-import {
-    UnstyledButton,
-    Group,
-    Avatar,
-    Text,
-    Indicator,
-    Divider,
-} from "@mantine/core";
+import { UnstyledButton, Text, Indicator } from "@mantine/core";
+import Avatar from "../Avatar";
+import { extractListTime } from "../../utils/extractTime";
 
-const Conversation = ({ conversation, lastIdx }) => {
+const Conversation = ({ conversation }) => {
     const {
         selectedConversation,
         setSelectedConversation,
@@ -27,7 +22,6 @@ const Conversation = ({ conversation, lastIdx }) => {
     const displayName = conversation.isGroupChat
         ? conversation.groupName
         : conversation.fullName;
-    const displayPic = conversation.profilePic;
 
     const hasUnread =
         unreadMessages[conversation._id] ||
@@ -43,66 +37,57 @@ const Conversation = ({ conversation, lastIdx }) => {
     };
 
     return (
-        <>
-            <UnstyledButton
-                w="100%"
-                p="sm"
-                style={(theme) => ({
-                    borderRadius: theme.radius.md,
-                    backgroundColor: isSelected
-                        ? "var(--mantine-primary-color-light)"
-                        : "transparent",
-                    "&:hover": {
-                        backgroundColor: isSelected
-                            ? "var(--mantine-primary-color-light)"
-                            : "var(--mantine-color-default-hover)",
-                    },
-                })}
-                onClick={handleSelect}
+        <UnstyledButton
+            className="row-button"
+            data-active={isSelected}
+            aria-current={isSelected ? "true" : undefined}
+            onClick={handleSelect}
+        >
+            <Indicator
+                inline
+                size={11}
+                offset={4}
+                position="bottom-end"
+                color="var(--mantine-primary-color-filled)"
+                withBorder
+                disabled={!isOnline}
+                aria-label={isOnline ? "Online" : undefined}
             >
-                <Group gap="sm" wrap="nowrap">
-                    <Indicator
-                        inline
-                        size={12}
-                        offset={5}
-                        position="bottom-end"
-                        color="green"
-                        withBorder
-                        disabled={!isOnline}
-                    >
-                        <Avatar src={displayPic} radius="xl" size="md" />
-                    </Indicator>
+                <Avatar src={conversation.profilePic} alt="" radius="xl" size={42} name={displayName} />
+            </Indicator>
 
-                    <Text
-                        size="sm"
-                        fw={500}
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <Text size="sm" fw={hasUnread ? 600 : 500} truncate>
+                    {displayName}
+                </Text>
+                <Text size="xs" c="dimmed" truncate>
+                    {conversation.isGroupChat
+                        ? `${conversation.participants?.length || 0} members`
+                        : isOnline
+                          ? "Online"
+                          : `@${conversation.username || "user"}`}
+                </Text>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                <Text size="xs" c={hasUnread ? "var(--accent-text)" : "dimmed"} className="tabular">
+                    {extractListTime(conversation.updatedAt)}
+                </Text>
+                {hasUnread ? (
+                    <span
+                        aria-label="Unread messages"
                         style={{
-                            flex: 1,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
+                            width: 9,
+                            height: 9,
+                            borderRadius: "50%",
+                            backgroundColor: "var(--mantine-primary-color-filled)",
                         }}
-                    >
-                        {displayName}
-                    </Text>
-
-                    {hasUnread && (
-                        <div
-                            style={{
-                                width: 10,
-                                height: 10,
-                                borderRadius: "50%",
-                                backgroundColor:
-                                    "var(--mantine-color-blue-filled)",
-                                flexShrink: 0,
-                            }}
-                        />
-                    )}
-                </Group>
-            </UnstyledButton>
-
-            {!lastIdx && <Divider my="xs" />}
-        </>
+                    />
+                ) : (
+                    <span style={{ height: 9 }} />
+                )}
+            </div>
+        </UnstyledButton>
     );
 };
 

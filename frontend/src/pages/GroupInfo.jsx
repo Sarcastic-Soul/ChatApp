@@ -1,17 +1,15 @@
 import {
-    FiArrowLeft,
-    FiUserPlus,
-    FiCamera,
-    FiEdit2,
-    FiTrash2,
-    FiShield,
-    FiShieldOff,
-} from "react-icons/fi";
+    UserPlusIcon,
+    CameraIcon,
+    PencilSimpleIcon,
+    TrashIcon,
+    ShieldCheckIcon,
+    ShieldSlashIcon,
+    DotsThreeIcon,
+    MagnifyingGlassIcon,
+} from "@phosphor-icons/react";
 import {
     Center,
-    Paper,
-    Title,
-    Avatar,
     Text,
     Stack,
     ActionIcon,
@@ -24,8 +22,12 @@ import {
     TextInput,
     ScrollArea,
     UnstyledButton,
-    Badge,
+    Menu,
+    Skeleton,
+    Tooltip,
 } from "@mantine/core";
+import Avatar from "../components/Avatar";
+import PageShell from "../components/layout/PageShell";
 import useGroupInfo from "../hooks/useGroupInfo";
 
 const GroupInfo = () => {
@@ -59,233 +61,185 @@ const GroupInfo = () => {
 
     if (loading) {
         return (
-            <Center mih="100vh">
-                <Loader size="lg" />
-            </Center>
+            <PageShell>
+                <Stack align="center" gap="md">
+                    <Skeleton circle height={112} />
+                    <Skeleton height={28} width={220} />
+                    <Skeleton height={14} width={90} />
+                </Stack>
+            </PageShell>
         );
     }
 
     if (!group) return null;
 
-    return (
-        <Center mih="100vh" p="md">
-            <Paper
-                withBorder
-                shadow="md"
-                p={30}
-                radius="md"
-                w="100%"
-                maw={500}
-                style={{ position: "relative" }}
-            >
-                <MantineGroup justify="space-between" align="center" mb="xl">
-                    <ActionIcon variant="subtle" onClick={() => navigate(-1)}>
-                        <FiArrowLeft />
-                    </ActionIcon>
-                    {isAdmin && (
-                        <ActionIcon
-                            variant="light"
-                            onClick={() => setIsAddMemberModalOpen(true)}
-                            title="Add Member"
-                        >
-                            <FiUserPlus />
-                        </ActionIcon>
-                    )}
-                </MantineGroup>
+    const admins = group.admins || [];
 
-                <Stack align="center" gap="lg" mb="xl">
-                    <Box style={{ position: "relative" }}>
-                        <Avatar
-                            src={group.profilePic}
-                            size={120}
-                            radius={120}
-                            style={{
-                                border: "4px solid var(--mantine-primary-color-filled)",
-                            }}
-                        />
-                        {isAdmin && (
-                            <FileButton
-                                onChange={handleImageChange}
-                                accept="image/png,image/jpeg,image/jpg"
-                            >
-                                {(props) => (
+    return (
+        <PageShell
+            actions={
+                isAdmin && (
+                    <Button
+                        variant="default"
+                        size="sm"
+                        leftSection={<UserPlusIcon size={16} />}
+                        onClick={() => setIsAddMemberModalOpen(true)}
+                    >
+                        Add people
+                    </Button>
+                )
+            }
+        >
+            <Stack align="center" gap={6} mb="xl">
+                <Box pos="relative" mb="sm">
+                    <Avatar src={group.profilePic} alt="" size={112} radius={112} name={group.groupName} />
+                    {isAdmin && (
+                        <FileButton onChange={handleImageChange} accept="image/png,image/jpeg,image/jpg">
+                            {(props) => (
+                                <Tooltip label="Change group photo">
                                     <ActionIcon
                                         {...props}
                                         size="lg"
                                         radius="xl"
                                         variant="filled"
                                         loading={isUploading}
+                                        aria-label="Change group photo"
                                         style={{
                                             position: "absolute",
-                                            bottom: 0,
-                                            right: 0,
-                                            boxShadow:
-                                                "var(--mantine-shadow-sm)",
+                                            bottom: 2,
+                                            right: 2,
+                                            border: "3px solid var(--mantine-color-body)",
                                         }}
                                     >
-                                        {!isUploading && <FiCamera size={16} />}
+                                        <CameraIcon size={16} />
                                     </ActionIcon>
-                                )}
-                            </FileButton>
-                        )}
-                    </Box>
+                                </Tooltip>
+                            )}
+                        </FileButton>
+                    )}
+                </Box>
 
-                    {isEditingName ? (
-                        <MantineGroup gap="xs">
-                            <TextInput
-                                value={newGroupName}
-                                onChange={(e) =>
-                                    setNewGroupName(e.target.value)
-                                }
-                                autoFocus
-                            />
-                            <Button
-                                size="sm"
-                                loading={isUpdatingName}
-                                onClick={handleUpdateName}
-                            >
-                                Save
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="default"
-                                onClick={() => setIsEditingName(false)}
-                            >
-                                Cancel
-                            </Button>
-                        </MantineGroup>
-                    ) : (
-                        <MantineGroup gap="xs" align="center">
-                            <Title order={2} ta="center">
-                                {group.groupName}
-                            </Title>
-                            {isAdmin && (
+                {isEditingName ? (
+                    <MantineGroup gap="xs" wrap="nowrap">
+                        <TextInput
+                            value={newGroupName}
+                            onChange={(e) => setNewGroupName(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") handleUpdateName();
+                                if (e.key === "Escape") setIsEditingName(false);
+                            }}
+                            aria-label="Group name"
+                            autoFocus
+                        />
+                        <Button loading={isUpdatingName} onClick={handleUpdateName}>
+                            Save
+                        </Button>
+                        <Button variant="default" onClick={() => setIsEditingName(false)}>
+                            Cancel
+                        </Button>
+                    </MantineGroup>
+                ) : (
+                    <MantineGroup gap={4} align="center" wrap="nowrap">
+                        <Text component="h1" ff="heading" fz={44} lh={1} m={0} ta="center">
+                            {group.groupName}
+                        </Text>
+                        {isAdmin && (
+                            <Tooltip label="Rename group">
                                 <ActionIcon
                                     variant="subtle"
                                     color="gray"
                                     onClick={() => setIsEditingName(true)}
+                                    aria-label="Rename group"
                                 >
-                                    <FiEdit2 />
+                                    <PencilSimpleIcon size={18} />
                                 </ActionIcon>
+                            </Tooltip>
+                        )}
+                    </MantineGroup>
+                )}
+                <Text c="dimmed" className="tabular">
+                    {group.participants.length} members · {admins.length}{" "}
+                    {admins.length === 1 ? "admin" : "admins"}
+                </Text>
+            </Stack>
+
+            <Text fw={600} size="sm" c="dimmed" mb={6}>
+                Members
+            </Text>
+            <Stack gap={2} style={{ borderTop: "1px solid var(--line)", paddingTop: 6 }}>
+                {group.participants.map((participant) => {
+                    const isParticipantAdmin = admins.some((admin) => admin._id === participant._id);
+                    const isMe = participant._id === authUser._id;
+                    return (
+                        <MantineGroup key={participant._id} justify="space-between" wrap="nowrap" gap="xs">
+                            <UnstyledButton
+                                className="row-button"
+                                style={{ flex: 1, minWidth: 0 }}
+                                onClick={() => navigate(`/user/${participant.username}`)}
+                            >
+                                <Avatar src={participant.profilePic} alt="" radius="xl" name={participant.fullName} />
+                                <div style={{ minWidth: 0 }}>
+                                    <Text size="sm" fw={500} truncate>
+                                        {participant.fullName}
+                                        {isMe && (
+                                            <Text span c="dimmed" fw={400}>
+                                                {" "}
+                                                (you)
+                                            </Text>
+                                        )}
+                                    </Text>
+                                    <Text size="xs" c="dimmed" truncate>
+                                        @{participant.username}
+                                        {isParticipantAdmin && " · Admin"}
+                                    </Text>
+                                </div>
+                            </UnstyledButton>
+
+                            {isAdmin && !isMe && (
+                                <Menu position="bottom-end" width={200}>
+                                    <Menu.Target>
+                                        <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            aria-label={`Manage ${participant.fullName}`}
+                                        >
+                                            <DotsThreeIcon size={18} weight="bold" />
+                                        </ActionIcon>
+                                    </Menu.Target>
+                                    <Menu.Dropdown>
+                                        {isParticipantAdmin ? (
+                                            admins.length > 1 && (
+                                                <Menu.Item
+                                                    leftSection={<ShieldSlashIcon size={16} />}
+                                                    onClick={() => handleDismissAdmin(participant._id)}
+                                                >
+                                                    Remove admin rights
+                                                </Menu.Item>
+                                            )
+                                        ) : (
+                                            <Menu.Item
+                                                leftSection={<ShieldCheckIcon size={16} />}
+                                                onClick={() => handleMakeAdmin(participant._id)}
+                                            >
+                                                Make admin
+                                            </Menu.Item>
+                                        )}
+                                        {(admins.length > 1 || !isParticipantAdmin) && (
+                                            <Menu.Item
+                                                color="red"
+                                                leftSection={<TrashIcon size={16} />}
+                                                onClick={() => handleRemoveMember(participant._id)}
+                                            >
+                                                Remove from group
+                                            </Menu.Item>
+                                        )}
+                                    </Menu.Dropdown>
+                                </Menu>
                             )}
                         </MantineGroup>
-                    )}
-                    <Text size="sm" c="dimmed">
-                        {group.participants.length} members
-                    </Text>
-                </Stack>
-
-                <Title order={4} mb="md">
-                    Members
-                </Title>
-                <ScrollArea h={300} offsetScrollbars>
-                    <Stack gap="xs">
-                        {group.participants.map((participant) => {
-                            const isParticipantAdmin = group.admins?.some(
-                                (admin) => admin._id === participant._id,
-                            );
-                            return (
-                                <Paper
-                                    key={participant._id}
-                                    p="sm"
-                                    withBorder
-                                    radius="md"
-                                >
-                                    <MantineGroup
-                                        justify="space-between"
-                                        wrap="nowrap"
-                                    >
-                                        <MantineGroup
-                                            gap="sm"
-                                            wrap="nowrap"
-                                            onClick={() =>
-                                                navigate(
-                                                    `/user/${participant.username}`,
-                                                )
-                                            }
-                                            style={{ cursor: "pointer" }}
-                                        >
-                                            <Avatar
-                                                src={participant.profilePic}
-                                                radius="xl"
-                                            />
-                                            <Stack gap={0}>
-                                                <Text size="sm" fw={500}>
-                                                    {participant.fullName}{" "}
-                                                    {participant._id ===
-                                                        authUser._id && "(You)"}
-                                                </Text>
-                                                <Text size="xs" c="dimmed">
-                                                    @{participant.username}
-                                                </Text>
-                                            </Stack>
-                                        </MantineGroup>
-                                        <MantineGroup gap="xs">
-                                            {isParticipantAdmin && (
-                                                <Badge
-                                                    color="blue"
-                                                    size="sm"
-                                                    variant="light"
-                                                >
-                                                    Admin
-                                                </Badge>
-                                            )}
-                                            {isAdmin &&
-                                                isParticipantAdmin &&
-                                                group.admins.length > 1 && (
-                                                    <ActionIcon
-                                                        variant="light"
-                                                        color="orange"
-                                                        onClick={() =>
-                                                            handleDismissAdmin(
-                                                                participant._id,
-                                                            )
-                                                        }
-                                                        title="Dismiss Admin"
-                                                    >
-                                                        <FiShieldOff
-                                                            size={12}
-                                                        />
-                                                    </ActionIcon>
-                                                )}
-                                            {isAdmin && !isParticipantAdmin && (
-                                                <ActionIcon
-                                                    variant="light"
-                                                    color="blue"
-                                                    onClick={() =>
-                                                        handleMakeAdmin(
-                                                            participant._id,
-                                                        )
-                                                    }
-                                                    title="Make Admin"
-                                                >
-                                                    <FiShield size={12} />
-                                                </ActionIcon>
-                                            )}
-                                            {isAdmin &&
-                                                (group.admins.length > 1 ||
-                                                    !isParticipantAdmin) && (
-                                                    <ActionIcon
-                                                        variant="light"
-                                                        color="red"
-                                                        onClick={() =>
-                                                            handleRemoveMember(
-                                                                participant._id,
-                                                            )
-                                                        }
-                                                        title="Remove Member"
-                                                    >
-                                                        <FiTrash2 size={12} />
-                                                    </ActionIcon>
-                                                )}
-                                        </MantineGroup>
-                                    </MantineGroup>
-                                </Paper>
-                            );
-                        })}
-                    </Stack>
-                </ScrollArea>
-            </Paper>
+                    );
+                })}
+            </Stack>
 
             <Modal
                 opened={isAddMemberModalOpen}
@@ -294,64 +248,48 @@ const GroupInfo = () => {
                     setSearchQuery("");
                     setUsers([]);
                 }}
-                title="Add Members"
+                title="Add people"
                 centered
             >
                 <TextInput
-                    placeholder="Search users..."
+                    placeholder="Search by name"
+                    aria-label="Search by name"
+                    leftSection={<MagnifyingGlassIcon size={16} />}
                     value={searchQuery}
                     onChange={handleSearchUsers}
                     mb="md"
+                    data-autofocus
                 />
 
                 <ScrollArea h={300} offsetScrollbars>
                     {searchingUsers ? (
                         <Center h={100}>
-                            <Loader size="sm" />
+                            <Loader size="sm" color="gray" />
                         </Center>
                     ) : users.length > 0 ? (
-                        <Stack gap="xs">
+                        <Stack gap={2}>
                             {users.map((user) => (
-                                <UnstyledButton
-                                    key={user._id}
-                                    w="100%"
-                                    p="sm"
-                                    style={(theme) => ({
-                                        borderRadius: theme.radius.md,
-                                        "&:hover": {
-                                            backgroundColor:
-                                                "var(--mantine-color-default-hover)",
-                                        },
-                                    })}
-                                    onClick={() => handleAddMember(user._id)}
-                                >
-                                    <MantineGroup justify="space-between">
-                                        <MantineGroup gap="sm">
-                                            <Avatar
-                                                src={user.profilePic}
-                                                radius="xl"
-                                            />
-                                            <Text size="sm" fw={500}>
-                                                {user.fullName}
-                                            </Text>
-                                        </MantineGroup>
-                                        <Button size="xs" variant="light">
-                                            Add
-                                        </Button>
+                                <MantineGroup key={user._id} justify="space-between" wrap="nowrap" pr={4}>
+                                    <MantineGroup gap="sm" p="xs" wrap="nowrap">
+                                        <Avatar src={user.profilePic} name={user.fullName} alt="" radius="xl" />
+                                        <Text size="sm" fw={500}>
+                                            {user.fullName}
+                                        </Text>
                                     </MantineGroup>
-                                </UnstyledButton>
+                                    <Button size="xs" variant="light" onClick={() => handleAddMember(user._id)}>
+                                        Add
+                                    </Button>
+                                </MantineGroup>
                             ))}
                         </Stack>
                     ) : (
-                        searchQuery && (
-                            <Text ta="center" c="dimmed" mt="md">
-                                No users found
-                            </Text>
-                        )
+                        <Text ta="center" c="dimmed" mt="md" size="sm">
+                            {searchQuery ? "Nobody matches that name." : "Type a name to find people."}
+                        </Text>
                     )}
                 </ScrollArea>
             </Modal>
-        </Center>
+        </PageShell>
     );
 };
 

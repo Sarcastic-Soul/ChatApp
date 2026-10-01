@@ -4,74 +4,70 @@ import {
     Menu,
     ColorSwatch,
     Group,
-    useMantineTheme,
+    SegmentedControl,
+    Tooltip,
 } from "@mantine/core";
-import { FiMoon, FiSun, FiDroplet, FiCheck } from "react-icons/fi";
+import { PaletteIcon, CheckIcon } from "@phosphor-icons/react";
 import useThemeStore from "../zustand/useThemeStore";
+import { accents } from "../theme";
 
-const ThemeToggle = ({ ...props }) => {
-    const { colorScheme, toggleColorScheme } = useMantineColorScheme();
-    const dark = colorScheme === "dark";
-    const theme = useMantineTheme();
-
+const ThemeToggle = (props) => {
+    const { colorScheme, setColorScheme } = useMantineColorScheme();
     const { primaryColor, setPrimaryColor } = useThemeStore();
-    const swatches = [
-        "red",
-        "pink",
-        "grape",
-        "violet",
-        "indigo",
-        "blue",
-        "cyan",
-        "teal",
-        "green",
-        "lime",
-        "yellow",
-        "orange",
-    ];
 
     return (
-        <Group gap="sm" {...props}>
-            <Menu shadow="md" width={220} position="bottom-end">
-                <Menu.Target>
+        <Menu width={240} position="top-end" closeOnItemClick={false} {...props}>
+            <Menu.Target>
+                <Tooltip label="Appearance">
                     <ActionIcon
-                        variant="default"
+                        variant="subtle"
+                        color="gray"
                         size="lg"
-                        title="Change theme color"
+                        aria-label="Appearance settings"
                     >
-                        <FiDroplet size={18} />
+                        <PaletteIcon size={20} />
                     </ActionIcon>
-                </Menu.Target>
+                </Tooltip>
+            </Menu.Target>
 
-                <Menu.Dropdown>
-                    <Menu.Label>Primary Color</Menu.Label>
-                    <Group p="xs" gap="xs">
-                        {swatches.map((color) => (
+            <Menu.Dropdown p="sm">
+                <Menu.Label px={0}>Mode</Menu.Label>
+                <SegmentedControl
+                    fullWidth
+                    size="xs"
+                    value={colorScheme}
+                    onChange={setColorScheme}
+                    data={[
+                        { label: "Light", value: "light" },
+                        { label: "Dark", value: "dark" },
+                        { label: "Auto", value: "auto" },
+                    ]}
+                />
+                <Menu.Label px={0} mt="sm">
+                    Accent
+                </Menu.Label>
+                <Group gap={8}>
+                    {Object.entries(accents).map(([name, { label, base }]) => (
+                        <Tooltip key={name} label={label}>
                             <ColorSwatch
-                                key={color}
-                                color={theme.colors[color][6]}
-                                onClick={() => setPrimaryColor(color)}
-                                size={24}
-                                style={{ cursor: "pointer" }}
+                                component="button"
+                                type="button"
+                                color={base}
+                                size={28}
+                                onClick={() => setPrimaryColor(name)}
+                                aria-label={label}
+                                aria-pressed={primaryColor === name}
+                                style={{ cursor: "pointer", color: "#fbf9f4" }}
                             >
-                                {primaryColor === color && (
-                                    <FiCheck size={12} color="white" />
+                                {primaryColor === name && (
+                                    <CheckIcon size={14} weight="bold" />
                                 )}
                             </ColorSwatch>
-                        ))}
-                    </Group>
-                </Menu.Dropdown>
-            </Menu>
-
-            <ActionIcon
-                variant="default"
-                size="lg"
-                onClick={() => toggleColorScheme()}
-                title="Toggle color scheme"
-            >
-                {dark ? <FiSun size={18} /> : <FiMoon size={18} />}
-            </ActionIcon>
-        </Group>
+                        </Tooltip>
+                    ))}
+                </Group>
+            </Menu.Dropdown>
+        </Menu>
     );
 };
 
