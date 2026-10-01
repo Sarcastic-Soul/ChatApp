@@ -1,18 +1,14 @@
 import crypto from "crypto";
 
-// Hash the key so AES-256 always gets 32 bytes.
-// The fallback only exists so messages saved under it can still be read.
-// Set ENCRYPTION_KEY in every environment.
+// Refuse to start without a key, so messages never get a guessable one.
 if (!process.env.ENCRYPTION_KEY) {
-    console.warn(
-        "ENCRYPTION_KEY is not set. Messages are encrypted with the public fallback key.",
-    );
+    throw new Error("ENCRYPTION_KEY is not set.");
 }
-const keyString =
-    process.env.ENCRYPTION_KEY || "default_mern_chat_secret_key_2024";
+
+// Hash the key so AES-256 always gets 32 bytes
 const keyBuffer = crypto
     .createHash("sha256")
-    .update(String(keyString))
+    .update(process.env.ENCRYPTION_KEY)
     .digest();
 
 const IV_LENGTH = 16; // AES block size
