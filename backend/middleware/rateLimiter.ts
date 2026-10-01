@@ -1,7 +1,10 @@
+import type { RequestHandler } from "express";
 import rateLimit from "express-rate-limit";
+import { RedisStore } from "rate-limit-redis";
+import type { RedisClientType } from "redis";
 
 // Limit message sending: 50 messages per minute per user
-export const messageRateLimiter = rateLimit({
+const messageLimitOptions = {
     windowMs: 60 * 1000, // 1 minute
     max: 50, // Limit each user to 50 requests per windowMs
     message: {
@@ -18,4 +21,20 @@ export const messageRateLimiter = rateLimit({
                   req.socket.remoteAddress ||
                   "unknown";
     },
-});
+} satisfies Parameters<typeof rateLimit>[0];
+
+// Kept in memory unless config/redis.ts switches it to Redis, so every
+// server counts the same messages
+let messageLimiter = rateLimit(messageLimitOptions);
+
+export const useRedisRateLimits = (redis: RedisClientType) => {
+    messageLimiter = rateLimit({
+        ...messageLimitOptions,
+        store: new RedisStore({
+            prefix: "rate:messages:",
+            sendCommand: (...args: string[]) => redis.sendCommand(args),
+        }),
+    });
+};
+
+export const messageRateLimiter: RequestHandler = (req, res, next) => messageLimiter(req, res, next);

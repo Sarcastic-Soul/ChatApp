@@ -60,13 +60,13 @@ otherwise.
         missing
   - [x] Drive sent and read states from acks tied to message IDs (sending
         until the server's reply, read up to the receipt's sequence number)
-- [ ] **Scale Socket.IO across several servers** (needs Redis: Render Key
+- [x] **Scale Socket.IO across several servers** (needs Redis: Render Key
       Value free tier or Upstash)
-  - [ ] `@socket.io/redis-adapter`, with online status and typing state in
-        Redis
-  - [ ] 2 to 3 instances behind Nginx with sticky sessions, run locally in
+  - [x] `@socket.io/redis-adapter`, with online status and the message rate
+        limit in Redis (typing events go through the adapter like the rest)
+  - [x] 3 instances behind Nginx with sticky sessions, run locally in
         docker-compose (the Render free tier allows one instance)
-  - [ ] Load test with k6, recording p50 and p95 delivery latency and error
+  - [x] Load test with k6, recording p50 and p95 delivery latency and error
         rate in the repo
 - [ ] **End-to-end encryption**
   - [ ] Key pair per browser with the Web Crypto API; only public keys go to

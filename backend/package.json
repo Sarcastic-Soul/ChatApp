@@ -18,6 +18,7 @@
     "typecheck": "tsc -p . && tsc -p tests"
   },
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.11.0",
     "cookie-parser": "^1.4.7",
@@ -28,6 +29,8 @@
     "jsonwebtoken": "^9.0.3",
     "leo-profanity": "^1.9.0",
     "mongoose": "^9.10.3",
+    "rate-limit-redis": "^6.0.1",
+    "redis": "^6.3.0",
     "socket.io": "^4.8.4",
     "web-push": "^3.6.7",
     "zod": "^4.6.5"

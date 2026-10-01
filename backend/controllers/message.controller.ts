@@ -19,7 +19,7 @@ import Message, {
     type QuotedMessage,
 } from "../models/message.model.ts";
 import User, { type PublicUser } from "../models/user.model.ts";
-import { getReceiverSocketId, io } from "../socket/socket.ts";
+import { emitToChat, isOnline } from "../socket/socket.ts";
 import { encryptText, decryptText } from "../utils/encryption.ts";
 import { cleanProfanity } from "../utils/profanityFilter.ts";
 import { messageNotification, sendPushToUsers } from "../utils/push.ts";
@@ -152,25 +152,12 @@ export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema
 
         const populatedMessage = await readableMessage(newMessage);
 
-        if (conversation.isGroupChat) {
-            io.to(conversation._id.toString()).emit(
-                "newMessage",
-                populatedMessage,
-            );
-        } else {
-            const receiverId = conversation.participants.find(
-                (p) => p.toString() !== senderId.toString(),
-            );
-            const receiverSocketId = getReceiverSocketId(receiverId);
-            if (receiverSocketId) {
-                io.to(receiverSocketId).emit("newMessage", populatedMessage);
-            }
-        }
+        emitToChat(conversation, "newMessage", populatedMessage, senderId);
 
         // People with no open tab get a push notification instead
-        const offlineIds = conversation.participants.filter(
-            (p) => !p.equals(senderId) && !getReceiverSocketId(p),
-        );
+        const others = conversation.participants.filter((p) => !p.equals(senderId));
+        const online = await Promise.all(others.map((p) => isOnline(p)));
+        const offlineIds = others.filter((_p, index) => !online[index]);
         if (offlineIds.length) {
             const payload = messageNotification({
                 conversation,
@@ -278,25 +265,7 @@ export const markMessagesAsRead = async (req: ValidatedRequest<typeof conversati
             },
         );
 
-        if (conversation.isGroupChat) {
-            io.to(conversationId).emit("messagesRead", {
-                conversationId,
-                userId,
-                upToSeq,
-            });
-        } else {
-            const otherParticipantId = conversation.participants.find(
-                (p) => p.toString() !== userId.toString(),
-            );
-            const senderSocketId = getReceiverSocketId(otherParticipantId);
-            if (senderSocketId) {
-                io.to(senderSocketId).emit("messagesRead", {
-                    conversationId,
-                    userId,
-                    upToSeq,
-                });
-            }
-        }
+        emitToChat(conversation, "messagesRead", { conversationId, userId, upToSeq }, userId);
 
         res.status(200).json({ message: "Messages marked as read" });
     } catch (error) {
@@ -341,27 +310,11 @@ export const addReaction = async (req: ValidatedRequest<typeof reactionSchema>, 
 
         await message.save();
 
-        const messageObj = message.toObject();
-        if (messageObj.message) {
-            messageObj.message = decryptText(messageObj.message);
-        }
+        // Same shape as a new message, so the browser can swap it in whole
+        const messageObj = await readableMessage(message);
 
-        if (conversation.isGroupChat) {
-            io.to(conversation._id.toString()).emit("messageReaction", messageObj);
-        } else {
-            const receiverId = conversation.participants.find(
-                (p) => p.toString() !== userId.toString(),
-            );
-            const receiverSocketId = getReceiverSocketId(receiverId);
-            if (receiverSocketId) {
-                io.to(receiverSocketId).emit("messageReaction", messageObj);
-            }
-
-            const senderSocketId = getReceiverSocketId(userId);
-            if (senderSocketId && senderSocketId !== receiverSocketId) {
-                io.to(senderSocketId).emit("messageReaction", messageObj);
-            }
-        }
+        // Both people get it, so the reactor's other tabs update too
+        emitToChat(conversation, "messageReaction", messageObj);
 
         res.status(200).json(messageObj);
     } catch (error) {
@@ -483,17 +436,7 @@ export const editMessage = async (req: ValidatedRequest<typeof editMessageSchema
         });
 
         if (conversation) {
-            if (conversation.isGroupChat) {
-                io.to(conversation._id.toString()).emit("messageEdited", populatedObj);
-            } else {
-                const receiverId = conversation.participants.find(
-                    (p) => p.toString() !== userId.toString(),
-                );
-                const receiverSocketId = getReceiverSocketId(receiverId);
-                if (receiverSocketId) {
-                    io.to(receiverSocketId).emit("messageEdited", populatedObj);
-                }
-            }
+            emitToChat(conversation, "messageEdited", populatedObj, userId);
         }
 
         res.status(200).json(populatedObj);
@@ -536,17 +479,7 @@ export const deleteMessage = async (req: ValidatedRequest<typeof messageIdSchema
         });
 
         if (conversation) {
-            if (conversation.isGroupChat) {
-                io.to(conversation._id.toString()).emit("messageDeleted", populatedObj);
-            } else {
-                const receiverId = conversation.participants.find(
-                    (p) => p.toString() !== userId.toString(),
-                );
-                const receiverSocketId = getReceiverSocketId(receiverId);
-                if (receiverSocketId) {
-                    io.to(receiverSocketId).emit("messageDeleted", populatedObj);
-                }
-            }
+            emitToChat(conversation, "messageDeleted", populatedObj, userId);
         }
 
         res.status(200).json(populatedObj);

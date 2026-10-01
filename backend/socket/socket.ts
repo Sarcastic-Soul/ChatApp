@@ -9,6 +9,7 @@ import { allowedOrigins } from "../config/allowedOrigins.ts";
 import { socketEvents, type SocketEventName } from "../validation/socketEvents.ts";
 import { requireEnv } from "../config/env.ts";
 import { errorMessage } from "../utils/errorMessage.ts";
+import { memoryPresence, type Presence } from "./presence.ts";
 
 type Id = Types.ObjectId | string;
 
@@ -25,15 +26,35 @@ const io = new Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, Sock
     },
 });
 
-// userId -> number of open sockets (a user can have several tabs open)
-const onlineUsers = new Map<string, number>();
+// In memory unless config/redis.ts shares it across servers
+let presence: Presence = memoryPresence();
+export const setPresence = (next: Presence) => {
+    presence = next;
+};
+
+export const isOnline = (userId: Id) => presence.isOnline(userId.toString());
 
 // Every socket joins a room named after its user id, so emitting to that
-// room reaches all of the user's tabs. Returns the room name when the user
-// is online, undefined otherwise.
-export const getReceiverSocketId = (receiverId: Id | null | undefined) => {
-    const id = receiverId?.toString();
-    return id && onlineUsers.has(id) ? id : undefined;
+// room reaches all of the user's tabs, on whichever server they are
+export const emitToUser = (userId: Id | null | undefined, event: string, payload?: unknown) => {
+    if (userId) io.to(userId.toString()).emit(event, payload);
+};
+
+// Sends to everyone in a chat: the group room, or each person in a 1-on-1
+// chat except `skipUserId` (usually the person who made the change)
+export const emitToChat = (
+    conversation: { _id: Types.ObjectId; isGroupChat?: boolean | null; participants: Types.ObjectId[] },
+    event: string,
+    payload: unknown,
+    skipUserId?: Id,
+) => {
+    if (conversation.isGroupChat) {
+        io.to(conversation._id.toString()).emit(event, payload);
+        return;
+    }
+    const skip = skipUserId?.toString();
+    const rooms = conversation.participants.map(String).filter((id) => id !== skip);
+    if (rooms.length) io.to(rooms).emit(event, payload);
 };
 
 export const addUserToRoom = (userId: Id, room: Id) => {
@@ -44,8 +65,12 @@ export const removeUserFromRoom = (userId: Id, room: Id) => {
     io.in(userId.toString()).socketsLeave(room.toString());
 };
 
-const emitOnlineUsers = () => {
-    io.emit("getOnlineUsers", [...onlineUsers.keys()]);
+const emitOnlineUsers = async () => {
+    try {
+        io.emit("getOnlineUsers", await presence.list());
+    } catch (error) {
+        console.error("Error listing online users:", errorMessage(error));
+    }
 };
 
 // Sockets authenticate with a short-lived token from GET /api/auth/socket-token
@@ -65,17 +90,25 @@ io.on("connection", async (socket) => {
     const { userId } = socket.data;
 
     socket.join(userId);
-    onlineUsers.set(userId, (onlineUsers.get(userId) || 0) + 1);
-    emitOnlineUsers();
+    // Counted before the handlers below run, so a fast disconnect can't
+    // be counted first
+    const counted = presence.connect(userId).then(emitOnlineUsers, (error) =>
+        console.error("Error saving online status:", errorMessage(error)),
+    );
 
-    // Sends to a user's room, or to a group room this socket belongs to
-    const relay = (targetId: Id | null | undefined, event: string, payload?: unknown) => {
+    // Sends to a group room this socket belongs to, or to an online user.
+    // Any other id (someone else's group, say) is ignored.
+    const relay = async (targetId: Id | null | undefined, event: string, payload?: unknown) => {
         const target = targetId?.toString();
         if (!target) return;
-        if (onlineUsers.has(target)) {
-            io.to(target).emit(event, payload);
-        } else if (socket.rooms.has(target)) {
-            socket.to(target).emit(event, payload);
+        try {
+            if (socket.rooms.has(target)) {
+                socket.to(target).emit(event, payload);
+            } else if (await presence.isOnline(target)) {
+                io.to(target).emit(event, payload);
+            }
+        } catch (error) {
+            console.error(`Error relaying ${event}:`, errorMessage(error));
         }
     };
 
@@ -134,11 +167,14 @@ io.on("connection", async (socket) => {
 
     on("leaveGroup", (groupId) => socket.leave(groupId));
 
-    socket.on("disconnect", () => {
-        const count = (onlineUsers.get(userId) || 1) - 1;
-        if (count > 0) onlineUsers.set(userId, count);
-        else onlineUsers.delete(userId);
-        emitOnlineUsers();
+    socket.on("disconnect", async () => {
+        try {
+            await counted;
+            await presence.disconnect(userId);
+            await emitOnlineUsers();
+        } catch (error) {
+            console.error("Error clearing online status:", errorMessage(error));
+        }
     });
 
     // Join group rooms last, so the handlers above are already listening

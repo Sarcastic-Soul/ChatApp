@@ -45,6 +45,7 @@ The backend runs on Render's free tier. A GitHub Actions job pings it every 10 m
 - Search every chat's messages from the sidebar, even though they're encrypted in the database; picking a result jumps to that message
 - Messages written offline or while the server is waking up wait in an outbox and go out once it's reachable, never twice, in the same order on every device
 - Chats open from an IndexedDB cache, then refresh from the server (75% faster on a 3G connection, see [Cache benchmark](#cache-benchmark))
+- Can run on several servers at once, joined through Redis, so a message reaches the other person whichever server each is on (see [Load test](#load-test))
 
 **Calls**
 - Voice and video calls between browsers over WebRTC, with mute and camera toggles
@@ -89,6 +90,8 @@ d2 docs/architecture.d2 docs/architecture.svg
 
 **Delivery.** The browser gives every message a UUID (`clientId`) and saves it to an outbox in IndexedDB before sending, so it shows in the chat at once with a clock icon. If the request fails because the network or server is down, the message stays in the outbox and is sent again when the socket reconnects, the browser comes back online, or a retry timer fires (2 s, 5 s, 15 s, up to a minute). A unique index on sender and `clientId` means a retry of a send that already went through gets the saved copy back instead of making a second one. Each chat keeps a counter (`lastSeq`), and the server gives every message the next number with one atomic `$inc`, so all devices sort a chat the same way even when two people send at once. After a reconnect the open chat asks for `?after=<newest number it has>` and gets only what it missed. Read receipts carry the number read up to, and the sender's messages show as read only up to that number. Chats from before sequence numbers existed are numbered in send order the first time they're opened.
 
+**Several servers.** Socket.IO keeps its rooms in each server's memory, so with two servers a message saved on one would never reach a user whose socket is on the other. When `REDIS_URL` is set, the backend uses `@socket.io/redis-adapter`: every broadcast goes through Redis pub/sub, and each server delivers it to its own sockets. Online status moves to Redis too: each server keeps a hash of its users and their open-socket counts, and refreshes a 30-second "alive" key every 10 seconds, so if a server crashes its users drop off the online list instead of staying online forever. The message rate limit counts in Redis (`rate-limit-redis`), so it holds across servers. Without `REDIS_URL` all of this stays in memory, which is what the single free Render instance uses. `docker-compose.scale.yml` runs three backends behind nginx locally: browsers start Socket.IO on long-polling, and every polling request must reach the server that holds the session, so those stick to one server by client IP. A client that opens a WebSocket straight away needs only one connection, so it can land on any server. API requests go round robin. See [Load test](#load-test) for numbers.
+
 **Encryption.** Message text is encrypted with AES-256-CBC (Node `crypto`) and a random IV before it is saved, and decrypted only when a member of the chat asks for it. The server won't start without `ENCRYPTION_KEY`.
 
 **Search.** Encrypted text can't go in a MongoDB text index, so each message also gets a blind index: a list of keyed hashes (HMAC-SHA256, with a key derived from `ENCRYPTION_KEY`) of its words and word starts, from 3 to 12 letters (two-letter words are stored whole). "meeting" is stored as the hashes of "mee", "meet", ... "meeting", so typing "meet" finds it. A search hashes the query words the same way, finds messages with every hash in chats the user belongs to, then decrypts the hits and checks them again. Someone with only the database sees hashes, not words, but can tell when two messages share a word; that is the trade-off for searching on the server. Edits update the hashes and deletes clear them. `pnpm run backfill:search` adds hashes to messages saved before search existed.
@@ -111,7 +114,7 @@ d2 docs/architecture.d2 docs/architecture.svg
 | Backend | Node.js 22, TypeScript (run by Node directly), Express 5, Socket.io 4, Mongoose 9, zod 4, JWT, bcrypt, helmet, `express-rate-limit`, `leo-profanity` |
 | Services | MongoDB Atlas, Cloudinary, Groq, Google STUN, Cloudflare TURN |
 | Hosting | Vercel (frontend and `/api` proxy), Render (API and sockets), GitHub Actions (keep-alive ping) |
-| Tooling | Docker Compose, pnpm, Vitest, supertest, mongodb-memory-server, ESLint 10 (flat config, typescript-eslint), GitHub Actions CI, D2 |
+| Tooling | Docker Compose, nginx, Redis, k6, pnpm, Vitest, supertest, mongodb-memory-server, ESLint 10 (flat config, typescript-eslint), GitHub Actions CI, D2 |
 
 ## Project structure
 
@@ -121,13 +124,13 @@ ChatApp/
 │   ├── ci.yml            # Type checks, lint, tests and build on every push
 │   └── keep-alive.yml    # Pings the backend every 10 minutes
 ├── backend/
-│   ├── config/           # Allowed CORS origins, required env variables
+│   ├── config/           # Allowed CORS origins, required env variables, Redis setup
 │   ├── controllers/      # Route handlers (auth, messages, groups, users, uploads)
 │   ├── db/               # MongoDB connection
 │   ├── middleware/       # Auth check, rate limit, zod validation
 │   ├── models/           # Mongoose schemas (User, Message, Conversation)
 │   ├── routes/           # REST routes
-│   ├── socket/           # Socket.io server, rooms and WebRTC signaling
+│   ├── socket/           # Socket.io server, rooms, online status and WebRTC signaling
 │   ├── utils/            # Encryption, profanity filter, JWT and Cloudinary helpers
 │   ├── validation/       # zod schemas for requests and socket events
 │   ├── scripts/          # e2e server on an in-memory MongoDB, search backfill
@@ -138,25 +141,31 @@ ChatApp/
 │   ├── seed.ts           # Demo data
 │   ├── server.ts         # Entry point, starts the server
 │   └── tsconfig.json     # Type checking only; Node runs the .ts files
+├── deploy/
+│   └── nginx-lb.conf     # Load balancer for the three-server setup
 ├── docs/
-│   └── architecture.d2   # Architecture diagram source
+│   ├── architecture.d2   # Architecture diagram source
+│   └── benchmarks/       # Cache and load test results
 ├── docker-compose.yml    # MongoDB, backend and frontend together
-└── frontend/
-    ├── e2e/              # Playwright end-to-end tests
-    ├── src/
-    │   ├── components/   # Chat, sidebar, call and modal components
-    │   ├── context/      # Auth, socket and call state
-    │   ├── hooks/        # Data fetching and actions
-    │   ├── pages/        # Landing, login, sign-up, chat, profile and group pages
-    │   ├── test/         # Vitest setup and a render helper with the app's providers
-    │   ├── utils/        # IndexedDB cache, uploads, push and formatters
-    │   ├── zustand/      # Global stores
-    │   ├── main.tsx      # Entry point
-    │   └── types.ts      # API response and socket event types
-    ├── Dockerfile        # Build, then serve with nginx
-    ├── nginx.conf        # /api proxy and SPA fallback for Docker
-    ├── tsconfig.json     # Type checking only; Vite strips the types
-    └── vercel.json       # /api proxy and SPA fallback on Vercel
+├── docker-compose.scale.yml  # Adds Redis, three backends and nginx in front
+├── frontend/
+│   ├── e2e/              # Playwright end-to-end tests
+│   ├── src/
+│   │   ├── components/   # Chat, sidebar, call and modal components
+│   │   ├── context/      # Auth, socket and call state
+│   │   ├── hooks/        # Data fetching and actions
+│   │   ├── pages/        # Landing, login, sign-up, chat, profile and group pages
+│   │   ├── test/         # Vitest setup and a render helper with the app's providers
+│   │   ├── utils/        # IndexedDB cache, uploads, push and formatters
+│   │   ├── zustand/      # Global stores
+│   │   ├── main.tsx      # Entry point
+│   │   └── types.ts      # API response and socket event types
+│   ├── Dockerfile        # Build, then serve with nginx
+│   ├── nginx.conf        # /api proxy and SPA fallback for Docker
+│   ├── tsconfig.json     # Type checking only; Vite strips the types
+│   └── vercel.json       # /api proxy and SPA fallback on Vercel
+└── loadtest/
+    └── chat.js           # k6 load test: message delivery latency
 ```
 
 ## Running locally
@@ -175,6 +184,14 @@ docker compose exec backend node seed.ts   # demo users, password123
 Open http://localhost:8080 and log in as `alice`. The compose file sets local-only secrets, so it runs with no setup. Uploads and magic reply need real keys: put `CLOUDINARY_*` and `GROQ_API_KEY` in a `.env` file next to `docker-compose.yml`. `docker compose down -v` stops everything and deletes the database.
 
 nginx forwards `/api` to the backend the same way `vercel.json` does in production, and the browser opens the socket to `localhost:5000` directly.
+
+To run three backends behind a load balancer, with Redis connecting them:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.scale.yml up --build -d
+```
+
+Port 5000 is now nginx (`deploy/nginx-lb.conf`), which spreads requests over the three backends. Every response has an `X-Upstream` header saying which one answered.
 
 ### Without Docker
 
@@ -236,7 +253,7 @@ cd frontend && pnpm exec playwright install chromium && pnpm run test:e2e
 
 The backend tests need no setup and never touch a real database. They start an in-memory MongoDB with `mongodb-memory-server` (the binary, about 120 MB, downloads on the first run), give each test file its own database, and use fake secrets from `backend/vitest.config.ts`.
 
-- **Backend (153 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response, TURN credentials from mocked Cloudflare and Metered responses, push notifications with a mocked `web-push` (who gets one, the payload, dropped subscriptions), message search (word starts, privacy across chats, edits and deletes, the backfill, and that hashes never reach the client), and delivery (a retried or doubled send saved once, sequence numbers under concurrent sends, numbering older chats, catch-up with `after`). Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status, read receipts with the sequence number, and that bad payloads are dropped.
+- **Backend (158 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response, TURN credentials from mocked Cloudflare and Metered responses, push notifications with a mocked `web-push` (who gets one, the payload, dropped subscriptions), message search (word starts, privacy across chats, edits and deletes, the backfill, and that hashes never reach the client), and delivery (a retried or doubled send saved once, sequence numbers under concurrent sends, numbering older chats, catch-up with `after`). Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status, read receipts with the sequence number, and that bad payloads are dropped. Five more tests run only when `TEST_REDIS_URL` points at a Redis server (CI starts one): a message reaching a socket on a second server, online status across servers and tabs, a crashed server's users going offline, and the rate limit's keys in Redis.
 - **Frontend (56 tests):** the login and sign-up pages with Testing Library on jsdom (form submit, server errors, client checks, the saved session check), the Zustand conversation store (ordering by sequence number, swapping an optimistic message for the saved one), the IndexedDB message cache and outbox (on `fake-indexeddb`), outbox sending (order, offline, retry after a server error, rejected messages, the first message of a new chat) and the time formatters.
 - **End to end (Playwright):** starts the real backend on an in-memory MongoDB and the Vite app, then two browsers sign up, start a chat and swap messages live over the socket. One goes offline, sends a message, comes back, and the other sees it exactly once.
 
@@ -252,6 +269,25 @@ Opening a chat first shows the messages saved in IndexedDB, then swaps in the se
 | 3G | 407 ms | 104 ms | 75% |
 
 These ran against a backend on the same machine, so the "no cache" column leaves out real server time; on the free Render instance each request adds more, and a sleeping instance adds seconds. The roughly 100 to 170 ms that's left with the cache is reading IndexedDB and rendering 50 messages. Raw numbers and p90s are in [`docs/benchmarks/cache.json`](docs/benchmarks/cache.json).
+
+### Load test
+
+`loadtest/chat.js` is a [k6](https://k6.io) script. It signs up pairs of users; in each pair one user sends a message every 2 seconds over the REST API and the other listens on a WebSocket, and the script times each message from the send until it arrives on the socket. A message not seen within 5 seconds of the last send counts as missing. Run it against a local backend only:
+
+```bash
+k6 run -e PAIRS=100 -e DURATION=60 -e SUMMARY=docs/benchmarks/k6-1-server-100.json loadtest/chat.js
+```
+
+Each run lasted 60 seconds. "3 servers" is `docker-compose.scale.yml`, where the listeners were spread evenly over the three backends (20 sockets each in a 60-pair check), so most messages crossed servers through Redis:
+
+| Setup | Load | Delivered | Missing | p50 | p95 | p99 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 server | 100 pairs, 50 msg/s | 2,900 | 0 | 61 ms | 178 ms | 320 ms |
+| 3 servers + Redis | 100 pairs, 50 msg/s | 2,898 | 2 | 56 ms | 213 ms | 376 ms |
+| 1 server | 250 pairs, 125 msg/s | 7,249 | 1 | 17 ms | 398 ms | 747 ms |
+| 3 servers + Redis | 250 pairs, 125 msg/s | 7,231 | 2 | 8 ms | 766 ms | 1,572 ms |
+
+No send failed in any run. Everything (k6, nginx, Redis, MongoDB and the backends) ran in Docker on one 12-thread laptop, so three servers shared the same CPU as one and also paid for the extra Redis hop: they don't come out faster here, and the slower tail at 125 msg/s comes from that shared CPU. What the runs show is that messages still arrive, in under 100 ms for most of them, when the sender and the receiver are on different servers. Real gains from more servers need separate machines. Raw numbers, including p90 and the max, are in `docs/benchmarks/k6-*.json`.
 
 GitHub Actions runs all three suites, ESLint and the production build on every push to `main` and on pull requests (`.github/workflows/ci.yml`).
 
@@ -273,6 +309,7 @@ The backend reads `backend/.env` with Node's built-in `--env-file-if-exists`, so
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | For push notifications | Make a pair with `npx web-push generate-vapid-keys`. Without them the notifications setting is hidden |
 | `VAPID_SUBJECT` | With VAPID keys | Contact for the push services, e.g. `mailto:you@example.com` |
 | `METERED_DOMAIN`, `METERED_API_KEY` | No | Metered TURN instead of Cloudflare, e.g. `yourapp.metered.live`. With neither set, calls use STUN only |
+| `REDIS_URL` | No | Redis connection string, e.g. `redis://localhost:6379`. Needed only when running more than one backend; sockets, online status and the rate limit are shared through it |
 | `PORT` | No | Defaults to `5000` |
 | `NODE_ENV` | No | Set to `development` locally, so the login cookie works over plain HTTP |
 | `CLIENT_ORIGINS` | No | Extra CORS origins, comma-separated. The Vercel URL and `localhost:3000` are allowed already |

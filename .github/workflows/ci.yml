@@ -25,6 +25,17 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # For the multi-server tests in tests/redis.test.ts
+    services:
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v5
 
@@ -61,6 +72,8 @@ jobs:
 
       - name: Run tests with coverage
         run: pnpm test:coverage
+        env:
+          TEST_REDIS_URL: redis://localhost:6379
 
   frontend:
     name: Frontend lint, tests and build

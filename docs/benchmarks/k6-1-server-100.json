@@ -1,0 +1,17 @@
+{
+  "target": "http://127.0.0.1:5000",
+  "pairs": 100,
+  "durationSeconds": 60,
+  "messagesPerSecond": 50,
+  "delivered": 2900,
+  "lost": 0,
+  "deliveredRate": 1,
+  "sendErrorRate": 0,
+  "latencyMs": {
+    "p50": 61,
+    "p90": 150,
+    "p95": 178,
+    "p99": 320,
+    "max": 424
+  }
+}
