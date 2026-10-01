@@ -26,8 +26,9 @@ A high-performance, full-stack real-time chat application built with **React**, 
 * **🛡️ Soft-Masking Profanity Filter**: Automated backend profanity shield censors inappropriate language into masked asterisks (`****`) before storage.
 * **⚡ Offline-First Caching (IndexedDB)**: Stale-while-revalidate data pipeline powered by `idb` for instant conversation loading.
 * **📞 Peer-to-Peer WebRTC Calling**: Direct voice & video calls over native `RTCPeerConnection` with Socket.io signaling.
-* **🤖 AI Magic Reply (Google Gemini)**: Intelligent, tone-aware quick reply generation powered by `gemini-2.5-flash`.
+* **🤖 AI Magic Reply (Google Gemini)**: Tone-aware reply drafts from the recent chat, using the `@google/genai` SDK (model set by `GEMINI_MODEL`, default `gemini-2.5-flash`).
 * **💬 Rich Messaging Suite**: Support for media attachments (Cloudinary), quoted replies, message editing, deletion for everyone, reactions, read receipts, and typing indicators.
+* **🎨 Themes**: Light, dark or system mode, with five accent colors to pick from.
 
 ---
 
@@ -39,9 +40,10 @@ A high-performance, full-stack real-time chat application built with **React**, 
 
 ## 🛠️ Tech Stack
 
-* **Frontend**: React 18, Vite, Mantine UI (v7), Zustand, Tailwind CSS, Socket.io-client, IndexedDB (`idb`).
-* **Backend**: Express.js, Socket.io, MongoDB & Mongoose, JWT (HttpOnly cookies), `leo-profanity`, Cloudinary SDK, `@google/generative-ai`.
-* **Tooling & Package Manager**: `pnpm` v11+, ES Modules.
+* **Frontend**: React 19, Vite 8, Mantine 9, React Router 7, Zustand 5, Motion, Phosphor Icons, Socket.io-client, IndexedDB (`idb`).
+* **Backend**: Node.js 22, Express 5, Socket.io, MongoDB & Mongoose 9, JWT (HttpOnly cookies), `leo-profanity`, Cloudinary SDK, `@google/genai`.
+* **Tooling**: `pnpm`, ESLint 10 (flat config), ES Modules.
+* **Hosting**: Frontend on Vercel, which also forwards `/api` requests to the backend on Render. The socket connects to Render directly with a short-lived token.
 
 ---
 
@@ -71,7 +73,7 @@ mern-chat-app/
 ## 🚀 Local Development Setup
 
 ### Prerequisites
-* **Node.js** (v18+)
+* **Node.js** (v22+)
 * **pnpm** installed (`npm i -g pnpm`)
 * **MongoDB** connection URI
 
@@ -104,7 +106,21 @@ CLOUDINARY_CLOUD_NAME=your_cloudinary_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 GEMINI_API_KEY=your_gemini_api_key
+# Optional
+GEMINI_MODEL=gemini-2.5-flash
+# Extra origins allowed by CORS, comma-separated
+CLIENT_ORIGINS=http://localhost:4173
 ```
+
+The backend reads this file with Node's `--env-file-if-exists`, so no `dotenv` package is needed.
+
+Create `.env` in `frontend/` (optional for local work):
+
+```env
+VITE_API_URL=http://localhost:5000
+```
+
+In development, Vite proxies `/api` to `VITE_API_URL` (default `http://localhost:5000`).
 
 ### 3. Seed Database (Optional)
 
@@ -124,6 +140,8 @@ pnpm run dev
 cd frontend
 pnpm run dev
 ```
+
+The frontend runs on [http://localhost:3000](http://localhost:3000).
 
 ---
 

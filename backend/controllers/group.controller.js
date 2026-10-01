@@ -160,8 +160,12 @@ export const deleteGroup = async (req, res) => {
 export const updateGroupName = async (req, res) => {
     try {
         const { groupId } = req.params;
-        const { name } = req.body;
+        const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
         const userId = req.user._id;
+
+        if (!name) {
+            return res.status(400).json({ error: "Group name is required." });
+        }
 
         const group = await Conversation.findById(groupId);
 
