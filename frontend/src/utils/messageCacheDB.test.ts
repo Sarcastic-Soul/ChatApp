@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import {
+    addToOutbox,
+    getOutbox,
+    removeFromOutbox,
     addMessageToCache,
     addOlderMessages,
     clearAllMessages,
@@ -80,5 +83,30 @@ describe("message cache", () => {
 
         await addMessageToCache("c1", msg("b"));
         expect(await getCachedMessages("c1")).toEqual([msg("b")]);
+    });
+});
+
+describe("outbox", () => {
+    const entry = (clientId: string, createdAt: number) => ({
+        clientId,
+        targetId: "c1",
+        body: { message: clientId, clientId },
+        message: msg(clientId),
+        createdAt,
+    });
+
+    test("lists entries oldest first and removes them by client id", async () => {
+        await addToOutbox(entry("second", 2));
+        await addToOutbox(entry("first", 1));
+        expect((await getOutbox()).map((e) => e.clientId)).toEqual(["first", "second"]);
+
+        await removeFromOutbox("first");
+        expect((await getOutbox()).map((e) => e.clientId)).toEqual(["second"]);
+    });
+
+    test("is emptied with the rest of the data on logout", async () => {
+        await addToOutbox(entry("a", 1));
+        await clearAllMessages();
+        expect(await getOutbox()).toEqual([]);
     });
 });

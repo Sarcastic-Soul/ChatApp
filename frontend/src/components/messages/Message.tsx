@@ -27,6 +27,7 @@ import {
     XIcon,
     CheckIcon,
     ChecksIcon,
+    ClockIcon,
     VideoCameraIcon,
     VideoCameraSlashIcon,
     PhoneIcon,
@@ -403,7 +404,7 @@ const Message = ({ message }: { message: MessageData }) => {
                         )}
                     </div>
 
-                    {!message.isDeleted && !isEditing && tools}
+                    {!message.isDeleted && !isEditing && !message.pending && tools}
                 </div>
 
                 {Object.keys(reactionCounts).length > 0 && (
@@ -450,7 +451,9 @@ const Message = ({ message }: { message: MessageData }) => {
                         </Text>
                     )}
                     {fromMe &&
-                        (message.status === "read" ? (
+                        (message.pending ? (
+                            <ClockIcon size={14} aria-label="Sending" style={{ color: "var(--muted)" }} />
+                        ) : message.status === "read" ? (
                             <ChecksIcon
                                 size={14}
                                 weight="bold"

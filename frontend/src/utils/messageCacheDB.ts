@@ -3,11 +3,26 @@ import type { Message } from "../types";
 
 const DB_NAME = "chat-db";
 
-// One row per conversation, keyed by the conversation id
+// A message waiting to be sent. targetId is the chat id, or the other
+// person's user id for the first message of a new chat.
+export interface OutboxEntry {
+    clientId: string;
+    targetId: string;
+    body: Record<string, unknown>;
+    // The copy shown in the chat until the server saves it
+    message: Message;
+    createdAt: number;
+}
+
 interface ChatDB extends DBSchema {
+    // One row per conversation, keyed by the conversation id
     messages: {
         key: string;
         value: { id: string; messages: Message[]; timestamp: number };
+    };
+    outbox: {
+        key: string;
+        value: OutboxEntry;
     };
 }
 
@@ -17,10 +32,13 @@ let dbPromise: Promise<IDBPDatabase<ChatDB>> | null = null;
 
 const getDB = () => {
     if (!dbPromise) {
-        dbPromise = openDB<ChatDB>(DB_NAME, 1, {
+        dbPromise = openDB<ChatDB>(DB_NAME, 2, {
             upgrade(db) {
                 if (!db.objectStoreNames.contains("messages")) {
                     db.createObjectStore("messages", { keyPath: "id" });
+                }
+                if (!db.objectStoreNames.contains("outbox")) {
+                    db.createObjectStore("outbox", { keyPath: "clientId" });
                 }
             },
         }).then((db) => {
@@ -141,6 +159,26 @@ export const updateMessageInCache = async (conversationId: string, updatedMessag
 export const getCachedMessage = async (conversationId: string, messageId: string) => {
     const messages = await getCachedMessages(conversationId);
     return messages.find((msg) => msg._id === messageId);
+};
+
+/**
+ * Outbox: messages saved here before sending, removed once the server has them.
+ */
+export const addToOutbox = async (entry: OutboxEntry) => {
+    const db = await getDB();
+    await db.put("outbox", entry);
+};
+
+export const removeFromOutbox = async (clientId: string) => {
+    const db = await getDB();
+    await db.delete("outbox", clientId);
+};
+
+// Oldest first, so messages go out in the order they were written
+export const getOutbox = async () => {
+    const db = await getDB();
+    const entries = await db.getAll("outbox");
+    return entries.sort((a, b) => a.createdAt - b.createdAt);
 };
 
 export const clearAllMessages = async () => {

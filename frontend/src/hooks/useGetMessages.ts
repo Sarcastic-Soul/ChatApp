@@ -6,9 +6,20 @@ import {
     getCachedMessages,
     setCachedMessages,
     addOlderMessages,
+    getOutbox,
 } from "../utils/messageCacheDB";
 import { errorMessage } from "../utils/errorMessage";
 import type { ApiError, Message } from "../types";
+
+// Messages for this chat still waiting in the outbox, shown after the rest
+const unsentFor = async (conversationId: string) => {
+    try {
+        const outbox = await getOutbox();
+        return outbox.filter((entry) => entry.targetId === conversationId).map((entry) => entry.message);
+    } catch {
+        return [];
+    }
+};
 
 const useGetMessages = () => {
     const { messages, setMessages, selectedConversation } = useConversation();
@@ -28,7 +39,7 @@ const useGetMessages = () => {
 
     const getMessages = useCallback(async () => {
         if (!conversationId || !isRealConversation) {
-            setMessages([]);
+            setMessages(conversationId ? await unsentFor(conversationId) : []);
             setLoading(false);
             setInitialLoad(false);
             return;
@@ -38,9 +49,10 @@ const useGetMessages = () => {
         setInitialLoad(true);
 
         try {
+            const unsent = await unsentFor(conversationId);
             const cached = await getCachedMessages(conversationId);
             if (cached && cached.length > 0) {
-                setMessages(cached);
+                setMessages([...cached, ...unsent]);
                 setHasMore(cached.length % 50 === 0);
             }
 
@@ -55,7 +67,7 @@ const useGetMessages = () => {
 
             const chronologicalMessages = data.reverse();
 
-            setMessages(chronologicalMessages);
+            setMessages([...chronologicalMessages, ...(await unsentFor(conversationId))]);
             await setCachedMessages(conversationId, chronologicalMessages);
             setHasMore(data.length === 50);
 

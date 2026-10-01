@@ -54,6 +54,12 @@ export const getMessagesSchema = {
     params: conversationParams,
     query: z.object({
         before: objectId("Cursor").optional(),
+        // Sequence number of the newest message the browser already has
+        after: z.coerce
+            .number({ error: "After must be a number" })
+            .int()
+            .min(0, "After must be 0 or more")
+            .optional(),
         limit: z.coerce
             .number({ error: "Limit must be a number" })
             .int()
@@ -84,6 +90,8 @@ export const sendMessageSchema = {
             replyTo: objectId("Reply").nullish(),
             isCall: z.boolean().default(false),
             isForwarded: z.boolean().default(false),
+            // Made by the browser, so a retried send is saved only once
+            clientId: z.uuid("Client id must be a UUID").optional(),
         })
         .refine((data) => data.message.trim() || data.mediaUrl, {
             path: ["message"],

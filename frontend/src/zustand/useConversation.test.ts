@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import useConversation from "./useConversation";
+import useConversation, { placeMessage } from "./useConversation";
 import { addMessageToCache, updateMessageInCache } from "../utils/messageCacheDB";
 import type { Conversation, Message, PublicUser } from "../types";
 
@@ -77,6 +77,62 @@ describe("messages", () => {
         store().setMessages([already]);
         store().markMessagesRead("reader");
         expect(store().messages[0]).toBe(already);
+    });
+});
+
+describe("message order and delivery", () => {
+    const ids = (list: Message[]) => list.map((m) => m._id);
+
+    test("placeMessage puts a late arrival in sequence order", () => {
+        const list = [msg({ _id: "a", seq: 1 }), msg({ _id: "c", seq: 3 })];
+        expect(ids(placeMessage(list, msg({ _id: "b", seq: 2 })))).toEqual(["a", "b", "c"]);
+        expect(ids(placeMessage(list, msg({ _id: "d", seq: 4 })))).toEqual(["a", "c", "d"]);
+    });
+
+    test("placeMessage keeps unsent messages at the end", () => {
+        const list = [msg({ _id: "a", seq: 1 }), msg({ _id: "p", clientId: "p", pending: true })];
+        expect(ids(placeMessage(list, msg({ _id: "b", seq: 2 })))).toEqual(["a", "b", "p"]);
+        expect(ids(placeMessage(list, msg({ _id: "q", pending: true })))).toEqual(["a", "p", "q"]);
+    });
+
+    test("the saved message replaces its optimistic copy by client id", () => {
+        const list = [msg({ _id: "a", seq: 1 }), msg({ _id: "tmp", clientId: "tmp", pending: true })];
+        const next = placeMessage(list, msg({ _id: "real", clientId: "tmp", seq: 2 }));
+        expect(next).toHaveLength(2);
+        expect(next[1]).toMatchObject({ _id: "real", seq: 2 });
+        expect(next[1].pending).toBeUndefined();
+    });
+
+    test("an echo of a message already shown doesn't shake it again", () => {
+        const list = [msg({ _id: "a", seq: 1 })];
+        const next = placeMessage(list, msg({ _id: "a", seq: 1, shouldShake: true }));
+        expect(next[0].shouldShake).toBeUndefined();
+    });
+
+    test("addMessage keeps unsent messages out of the cache", () => {
+        store().setSelectedConversation(chat({ _id: "chat1" }));
+        store().addMessage(msg({ _id: "tmp", pending: true }));
+        expect(addMessageToCache).not.toHaveBeenCalled();
+    });
+
+    test("dropMessage removes only the unsent copy", () => {
+        store().setMessages([
+            msg({ _id: "a", clientId: "x" }),
+            msg({ _id: "x", clientId: "x", pending: true }),
+        ]);
+        store().dropMessage("x");
+        expect(ids(store().messages)).toEqual(["a"]);
+    });
+
+    test("a read receipt marks messages up to its sequence number", () => {
+        store().setMessages([
+            msg({ _id: "a", senderId: "me", status: "sent", seq: 1 }),
+            msg({ _id: "b", senderId: "me", status: "sent", seq: 2 }),
+            msg({ _id: "c", senderId: "me", status: "sent", seq: 3 }),
+            msg({ _id: "d", senderId: "me", status: "sent", pending: true }),
+        ]);
+        store().markMessagesRead("reader", 2);
+        expect(store().messages.map((m) => m.status)).toEqual(["read", "read", "sent", "sent"]);
     });
 });
 

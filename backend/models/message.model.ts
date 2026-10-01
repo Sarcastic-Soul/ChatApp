@@ -50,6 +50,17 @@ const messageSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        // Made by the sending browser, so a retried send can't create a
+        // second copy (unique per sender, see the index below)
+        clientId: {
+            type: String,
+            default: undefined,
+        },
+        // Position in the chat, from the conversation's lastSeq counter
+        seq: {
+            type: Number,
+            default: undefined,
+        },
         // Blind index for search (utils/searchIndex.ts). Never sent to clients.
         searchTokens: {
             type: [String],
@@ -82,6 +93,11 @@ const messageSchema = new mongoose.Schema(
 // Optimizing database queries for faster message retrieval
 messageSchema.index({ receiverId: 1, createdAt: -1 });
 messageSchema.index({ searchTokens: 1 });
+messageSchema.index({ receiverId: 1, seq: 1 });
+messageSchema.index(
+    { senderId: 1, clientId: 1 },
+    { unique: true, partialFilterExpression: { clientId: { $type: "string" } } },
+);
 
 // A document that was just saved still holds its tokens, so strip them
 // from every JSON response too

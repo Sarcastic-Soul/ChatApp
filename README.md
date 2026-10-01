@@ -43,6 +43,7 @@ The backend runs on Render's free tier. A GitHub Actions job pings it every 10 m
 - Replies, edits, delete for everyone, reactions and forwarding
 - Images, video and voice notes, uploaded straight from the browser to Cloudinary
 - Search every chat's messages from the sidebar, even though they're encrypted in the database; picking a result jumps to that message
+- Messages written offline or while the server is waking up wait in an outbox and go out once it's reachable, never twice, in the same order on every device
 - Chats open from an IndexedDB cache, then refresh from the server (75% faster on a 3G connection, see [Cache benchmark](#cache-benchmark))
 
 **Calls**
@@ -85,6 +86,8 @@ d2 docs/architecture.d2 docs/architecture.svg
 **Login.** Logging in sets a JWT in an `HttpOnly` cookie. Every protected route checks it in `protectRoute`. The socket server lives on Render's own domain and can't read that cookie, so the app first asks `GET /api/auth/socket-token` for a token that lasts 5 minutes and is only valid for opening a socket.
 
 **Real-time updates.** Each socket joins a room named after its user ID, plus one room per group the user is in. When a message is sent, edited, deleted or reacted to, the API saves it and then sends the change to the right rooms. A user with several tabs open gets updates in all of them.
+
+**Delivery.** The browser gives every message a UUID (`clientId`) and saves it to an outbox in IndexedDB before sending, so it shows in the chat at once with a clock icon. If the request fails because the network or server is down, the message stays in the outbox and is sent again when the socket reconnects, the browser comes back online, or a retry timer fires (2 s, 5 s, 15 s, up to a minute). A unique index on sender and `clientId` means a retry of a send that already went through gets the saved copy back instead of making a second one. Each chat keeps a counter (`lastSeq`), and the server gives every message the next number with one atomic `$inc`, so all devices sort a chat the same way even when two people send at once. After a reconnect the open chat asks for `?after=<newest number it has>` and gets only what it missed. Read receipts carry the number read up to, and the sender's messages show as read only up to that number. Chats from before sequence numbers existed are numbered in send order the first time they're opened.
 
 **Encryption.** Message text is encrypted with AES-256-CBC (Node `crypto`) and a random IV before it is saved, and decrypted only when a member of the chat asks for it. The server won't start without `ENCRYPTION_KEY`.
 
@@ -233,9 +236,9 @@ cd frontend && pnpm exec playwright install chromium && pnpm run test:e2e
 
 The backend tests need no setup and never touch a real database. They start an in-memory MongoDB with `mongodb-memory-server` (the binary, about 120 MB, downloads on the first run), give each test file its own database, and use fake secrets from `backend/vitest.config.ts`.
 
-- **Backend (138 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response, TURN credentials from mocked Cloudflare and Metered responses, push notifications with a mocked `web-push` (who gets one, the payload, dropped subscriptions), and message search (word starts, privacy across chats, edits and deletes, the backfill, and that hashes never reach the client). Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status and that bad payloads are dropped.
-- **Frontend (42 tests):** the login and sign-up pages with Testing Library on jsdom (form submit, server errors, client checks, the saved session check), the Zustand conversation store, the IndexedDB message cache (on `fake-indexeddb`) and the time formatters.
-- **End to end (Playwright):** starts the real backend on an in-memory MongoDB and the Vite app, then two browsers sign up, start a chat and swap messages live over the socket.
+- **Backend (153 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response, TURN credentials from mocked Cloudflare and Metered responses, push notifications with a mocked `web-push` (who gets one, the payload, dropped subscriptions), message search (word starts, privacy across chats, edits and deletes, the backfill, and that hashes never reach the client), and delivery (a retried or doubled send saved once, sequence numbers under concurrent sends, numbering older chats, catch-up with `after`). Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status, read receipts with the sequence number, and that bad payloads are dropped.
+- **Frontend (56 tests):** the login and sign-up pages with Testing Library on jsdom (form submit, server errors, client checks, the saved session check), the Zustand conversation store (ordering by sequence number, swapping an optimistic message for the saved one), the IndexedDB message cache and outbox (on `fake-indexeddb`), outbox sending (order, offline, retry after a server error, rejected messages, the first message of a new chat) and the time formatters.
+- **End to end (Playwright):** starts the real backend on an in-memory MongoDB and the Vite app, then two browsers sign up, start a chat and swap messages live over the socket. One goes offline, sends a message, comes back, and the other sees it exactly once.
 
 ### Cache benchmark
 
@@ -298,8 +301,9 @@ All routes start with `/api`. Every route except signup, login and logout needs 
 | `PUT` | `/users/update-pic` | Change your profile picture |
 | `PUT` | `/users/privacy` | Make your profile public or private |
 | `GET` | `/messages/:id?before=&limit=` | Messages in a chat, newest first, 50 at a time |
+| `GET` | `/messages/:id?after=&limit=` | Messages after a sequence number, oldest first (catch-up after a reconnect) |
 | `GET` | `/messages/search?q=&limit=` | Search messages in your chats, newest first (20 by default, 50 at most) |
-| `POST` | `/messages/send/:id` | Send a message to a chat, or to a user to start a chat |
+| `POST` | `/messages/send/:id` | Send a message to a chat, or to a user to start a chat. A repeat `clientId` returns the saved message |
 | `PUT` | `/messages/edit/:messageId` | Edit your message |
 | `DELETE` | `/messages/delete/:messageId` | Delete your message for everyone |
 | `POST` | `/messages/react/:messageId` | Add, change or remove a reaction |

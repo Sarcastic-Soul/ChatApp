@@ -51,14 +51,15 @@ otherwise.
         schemas supply the request types; `tsc` runs in CI)
   - [x] Move the frontend (strict `tsc` in CI, typed socket events and API
         responses)
-- [ ] **Reliable message delivery**
-  - [ ] Client-made message IDs, so a retried send never creates a duplicate
-  - [ ] Per-chat sequence numbers from the server, so every device shows the
+- [x] **Reliable message delivery**
+  - [x] Client-made message IDs, so a retried send never creates a duplicate
+  - [x] Per-chat sequence numbers from the server, so every device shows the
         same order
-  - [ ] Outbox in IndexedDB that retries unsent messages after reconnecting
-  - [ ] On reconnect, send "last sequence number I have" and get only what's
+  - [x] Outbox in IndexedDB that retries unsent messages after reconnecting
+  - [x] On reconnect, send "last sequence number I have" and get only what's
         missing
-  - [ ] Drive sent and read states from acks tied to message IDs
+  - [x] Drive sent and read states from acks tied to message IDs (sending
+        until the server's reply, read up to the receipt's sequence number)
 - [ ] **Scale Socket.IO across several servers** (needs Redis: Render Key
       Value free tier or Upstash)
   - [ ] `@socket.io/redis-adapter`, with online status and typing state in

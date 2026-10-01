@@ -1,9 +1,12 @@
 import { useState } from "react";
-import useConversation from "../zustand/useConversation";
+import useConversation, { placeMessage } from "../zustand/useConversation";
 import { notifications } from "@mantine/notifications";
 import { useAuthContext } from "../context/AuthContext";
 import { errorMessage } from "../utils/errorMessage";
-import type { ApiError, Conversation, MediaType, Message, PublicUser } from "../types";
+import { addToOutbox } from "../utils/messageCacheDB";
+import { flushOutbox } from "../utils/outbox";
+import { senderIdOf } from "../utils/sender";
+import type { MediaType, Message } from "../types";
 
 export interface MediaAttachment {
     url: string;
@@ -12,39 +15,26 @@ export interface MediaAttachment {
 
 interface SendMessageBody {
     message: string;
+    clientId: string;
     replyTo?: string;
     mediaUrl?: string;
     mediaType?: MediaType;
 }
 
-// The first message to someone also creates the conversation
-interface SendMessageResponse extends ApiError {
-    newMessage: Message;
-    newConversation?: { _id: string; participants: PublicUser[] };
-}
-
+// The message shows in the chat straight away, marked as sending. It waits
+// in the outbox (utils/outbox.ts) until the server has saved it.
 const useSendMessage = () => {
     const [loading, setLoading] = useState(false);
     const { authUser } = useAuthContext();
-    const {
-        messages,
-        setMessages,
-        selectedConversation,
-        setConversations,
-        conversations,
-        setSelectedConversation,
-        updateConversation,
-        replyingToMessage,
-        setReplyingToMessage,
-    } = useConversation();
+    const { setMessages, selectedConversation, replyingToMessage, setReplyingToMessage } =
+        useConversation();
 
     const sendMessage = async (messageText = "", media: MediaAttachment | null = null) => {
-        if (!selectedConversation) return;
+        if (!selectedConversation || !authUser) return;
         setLoading(true);
         try {
-            const body: SendMessageBody = {
-                message: messageText,
-            };
+            const clientId = crypto.randomUUID();
+            const body: SendMessageBody = { message: messageText, clientId };
 
             if (replyingToMessage) {
                 body.replyTo = replyingToMessage._id;
@@ -55,50 +45,47 @@ const useSendMessage = () => {
                 body.mediaType = media.type;
             }
 
-            const res = await fetch(
-                `/api/messages/send/${selectedConversation._id}`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(body),
-                },
-            );
+            const now = new Date().toISOString();
+            const message: Message = {
+                _id: clientId,
+                clientId,
+                pending: true,
+                senderId: authUser,
+                receiverId: selectedConversation._id,
+                message: messageText,
+                mediaUrl: body.mediaUrl ?? null,
+                mediaType: body.mediaType ?? "text",
+                status: "sent",
+                isEdited: false,
+                isDeleted: false,
+                isCall: false,
+                isForwarded: false,
+                isSystem: false,
+                replyTo: replyingToMessage
+                    ? {
+                          _id: replyingToMessage._id,
+                          message: replyingToMessage.message,
+                          mediaType: replyingToMessage.mediaType,
+                          mediaUrl: replyingToMessage.mediaUrl,
+                          senderId: senderIdOf(replyingToMessage.senderId),
+                      }
+                    : null,
+                reactions: [],
+                createdAt: now,
+                updatedAt: now,
+            };
 
-            const data = (await res.json()) as SendMessageResponse;
-            if (data.error) {
-                throw new Error(data.error);
-            }
-
-            setMessages([...messages, data.newMessage]);
+            await addToOutbox({
+                clientId,
+                targetId: selectedConversation._id,
+                body: { ...body },
+                message,
+                createdAt: Date.now(),
+            });
+            setMessages((prev) => placeMessage(prev, message));
             setReplyingToMessage(null);
 
-            updateConversation({
-                _id: selectedConversation._id,
-                updatedAt:
-                    data.newMessage.createdAt || new Date().toISOString(),
-            });
-
-            if (data.newConversation) {
-                const otherParticipant = data.newConversation.participants.find(
-                    (p) => p._id !== authUser?._id,
-                );
-                if (!otherParticipant) return;
-
-                const formattedNewConversation: Conversation = {
-                    _id: data.newConversation._id,
-                    isGroupChat: false,
-                    fullName: otherParticipant.fullName,
-                    profilePic: otherParticipant.profilePic,
-                    participantId: otherParticipant._id,
-                    username: otherParticipant.username,
-                    isPublic: otherParticipant.isPublic,
-                };
-
-                setConversations([formattedNewConversation, ...conversations]);
-                setSelectedConversation(formattedNewConversation);
-            }
+            void flushOutbox(authUser._id);
         } catch (error) {
             console.error("Error sending message:", errorMessage(error));
             notifications.show({ message: errorMessage(error), color: "red" });

@@ -118,6 +118,17 @@ describe("live events", () => {
         await notCarol;
     });
 
+    test("a read receipt says how far the reader got", async () => {
+        const sent = await alice.agent.post(`/api/messages/send/${chatId}`).send({ message: "read me" });
+        const receipt = nextEvent(alice.socket, "messagesRead");
+        await bob.agent.post(`/api/messages/read/${chatId}`);
+        expect(await receipt).toEqual({
+            conversationId: chatId,
+            userId: bob.user._id,
+            upToSeq: sent.body.newMessage.seq,
+        });
+    });
+
     test("typing is relayed with the real sender id", async () => {
         const typing = nextEvent(bob.socket, "typing");
         alice.socket.emit("typing", { conversationId: chatId, receiverId: bob.user._id });

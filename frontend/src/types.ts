@@ -93,6 +93,12 @@ export interface Message {
     reactions: Reaction[];
     createdAt: string;
     updatedAt: string;
+    // Made by the sending browser; matches the optimistic copy to the saved one
+    clientId?: string;
+    // Position in the chat, set by the server
+    seq?: number;
+    // Set in the browser while the message waits in the outbox
+    pending?: boolean;
     // Set in the browser, so a message that just arrived shakes once
     shouldShake?: boolean;
 }
@@ -113,6 +119,13 @@ export interface ApiError {
 
 export type CallType = "audio" | "video";
 
+// Everything up to upToSeq was read (missing on chats with no numbers yet)
+export interface ReadReceipt {
+    conversationId: string;
+    userId: string;
+    upToSeq?: number;
+}
+
 export interface TypingEvent {
     conversationId: string;
     userId: string;
@@ -130,7 +143,7 @@ export interface ServerToClientEvents {
     messageReaction: (message: Message) => void;
     messageEdited: (message: Message) => void;
     messageDeleted: (message: Message) => void;
-    messagesRead: (data: { conversationId: string; userId: string }) => void;
+    messagesRead: (data: ReadReceipt) => void;
     typing: (data: TypingEvent) => void;
     stopTyping: (data: TypingEvent) => void;
     incomingCall: (data: {

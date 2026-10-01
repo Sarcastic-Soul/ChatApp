@@ -29,7 +29,7 @@ describe("sending messages", () => {
     test("later messages to the same user reuse the conversation", async () => {
         const res = await send(bob, alice.user._id, { message: "hey alice" });
         expect(res.status).toBe(201);
-        expect(res.body.newConversation).toBeUndefined();
+        expect(res.body.newConversation._id).toBe(chatId);
         expect(res.body.newMessage.receiverId).toBe(chatId);
     });
 

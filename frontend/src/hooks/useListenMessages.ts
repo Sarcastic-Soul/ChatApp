@@ -3,7 +3,7 @@ import { useSocketContext } from "../context/SocketContext";
 import useConversation from "../zustand/useConversation";
 import notificationSound from "../assets/sounds/notification.mp3";
 import useMarkMessagesAsRead from "./useMarkMessagesAsRead";
-import type { Message, TypingEvent } from "../types";
+import type { Message, ReadReceipt, TypingEvent } from "../types";
 
 const useListenMessages = () => {
     const { markAsRead } = useMarkMessagesAsRead();
@@ -59,12 +59,12 @@ const useListenMessages = () => {
             }
         };
 
-        const handleMessagesRead = ({ conversationId, userId }: TypingEvent) => {
+        const handleMessagesRead = ({ conversationId, userId, upToSeq }: ReadReceipt) => {
             if (
                 selectedConversation &&
                 selectedConversation._id === conversationId
             ) {
-                markMessagesRead(userId);
+                markMessagesRead(userId, upToSeq);
             }
         };
 

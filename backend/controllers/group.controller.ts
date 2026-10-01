@@ -17,20 +17,19 @@ import User from "../models/user.model.ts";
 import Message from "../models/message.model.ts";
 import { encryptText } from "../utils/encryption.ts";
 import { includesId } from "../utils/ids.ts";
+import { appendMessage } from "../utils/sequence.ts";
 import { io, addUserToRoom, removeUserFromRoom } from "../socket/socket.ts";
 
 const emitSystemMessage = async (groupId: Types.ObjectId, senderId: Types.ObjectId, text: string) => {
     try {
-        const msg = await Message.create({
+        const msg = new Message({
             senderId,
             receiverId: groupId,
             message: encryptText(text),
             isSystem: true,
         });
-
-        await Conversation.findByIdAndUpdate(groupId, {
-            $push: { messages: msg._id },
-        });
+        msg.seq = await appendMessage(groupId, msg._id);
+        await msg.save();
 
         const populatedMessage = await msg.populate([
             {

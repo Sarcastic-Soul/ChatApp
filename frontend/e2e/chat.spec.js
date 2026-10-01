@@ -43,6 +43,18 @@ test("two people chat in real time", async ({ browser }) => {
     await alice.getByRole("button", { name: "Send" }).click();
     await expect(bob.getByText("Profanity check: **** happens")).toBeVisible();
 
+    // A message written offline waits in the outbox and goes out once the
+    // connection is back, exactly once
+    await aliceContext.setOffline(true);
+    await alice.getByRole("textbox", { name: "Message", exact: true }).fill("Written on the train");
+    await alice.getByRole("button", { name: "Send" }).click();
+    await expect(alice.getByText("Written on the train")).toBeVisible();
+    await expect(alice.getByLabel("Sending")).toBeVisible();
+
+    await aliceContext.setOffline(false);
+    await expect(bob.getByText("Written on the train")).toHaveCount(1);
+    await expect(alice.getByLabel("Sending")).toHaveCount(0);
+
     await aliceContext.close();
     await bobContext.close();
 });

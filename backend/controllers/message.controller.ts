@@ -13,13 +13,18 @@ import type {
 import { errorMessage } from "../utils/errorMessage.ts";
 import Conversation from "../models/conversation.model.ts";
 import type { QueryFilter } from "mongoose";
-import Message, { type MessageFields, type QuotedMessage } from "../models/message.model.ts";
+import Message, {
+    type MessageDocument,
+    type MessageFields,
+    type QuotedMessage,
+} from "../models/message.model.ts";
 import User, { type PublicUser } from "../models/user.model.ts";
 import { getReceiverSocketId, io } from "../socket/socket.ts";
 import { encryptText, decryptText } from "../utils/encryption.ts";
 import { cleanProfanity } from "../utils/profanityFilter.ts";
 import { messageNotification, sendPushToUsers } from "../utils/push.ts";
 import { matchesQuery, queryTokensFor, searchTokensFor } from "../utils/searchIndex.ts";
+import { appendMessage, ensureSequenced } from "../utils/sequence.ts";
 
 // Messages go out with the sender's profile and the message they reply to
 const WITH_SENDER_AND_REPLY = [
@@ -28,10 +33,27 @@ const WITH_SENDER_AND_REPLY = [
 ];
 type WithSenderAndReply = { senderId: PublicUser; replyTo: QuotedMessage | null };
 
+// Decrypts a saved message and the message it quotes, ready to send out
+const readableMessage = async (message: MessageDocument) => {
+    const populated = await message.populate<WithSenderAndReply>(WITH_SENDER_AND_REPLY);
+    if (populated.message) {
+        populated.message = decryptText(populated.message);
+    }
+    if (populated.replyTo && populated.replyTo.message) {
+        populated.replyTo.message = decryptText(populated.replyTo.message);
+    }
+    return populated;
+};
+
+type ReadableMessage = Awaited<ReturnType<typeof readableMessage>>;
+
+const isDuplicateKeyError = (error: unknown) =>
+    (error as { code?: number }).code === 11000;
+
 export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema>, res: Response) => {
     try {
         // Checked by sendMessageSchema. System messages are only made by the server.
-        const { message, mediaUrl, mediaType, replyTo, isCall, isForwarded } = req.body;
+        const { message, mediaUrl, mediaType, replyTo, isCall, isForwarded, clientId } = req.body;
         const { id: conversationIdOrUserId } = req.params;
         const senderId = req.user._id;
 
@@ -40,10 +62,13 @@ export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema
             return res.status(400).json({ error: "You can't message yourself." });
         }
 
-        let isNewConversation = false;
+        // Sent to a user id rather than a chat id: the reply includes the
+        // chat, so the browser can switch to it (also on a retried send)
+        let addressedByUserId = false;
         let conversation = await Conversation.findById(conversationIdOrUserId);
 
         if (!conversation) {
+            addressedByUserId = true;
             conversation = await Conversation.findOne({
                 isGroupChat: false,
                 participants: { $all: [senderId, conversationIdOrUserId] },
@@ -63,7 +88,6 @@ export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema
                 conversation = await Conversation.create({
                     participants: [senderId, conversationIdOrUserId],
                 });
-                isNewConversation = true;
             }
         }
 
@@ -71,6 +95,21 @@ export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema
             return res.status(403).json({
                 error: "You are not a participant in this conversation.",
             });
+        }
+
+        const respond = async (status: number, newMessage: ReadableMessage) => {
+            if (!addressedByUserId) return res.status(status).json({ newMessage });
+            const newConversation = await conversation.populate(
+                "participants",
+                "fullName profilePic username isPublic",
+            );
+            return res.status(status).json({ newMessage, newConversation });
+        };
+
+        // A retry of a send that already went through gets the saved copy back
+        if (clientId) {
+            const existing = await Message.findOne({ senderId, clientId });
+            if (existing) return respond(200, await readableMessage(existing));
         }
 
         // Replies show the quoted text, so it must come from this chat
@@ -85,6 +124,7 @@ export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema
         const newMessage = new Message({
             senderId,
             receiverId: conversation._id,
+            clientId,
             message: cleanedText ? encryptText(cleanedText) : "",
             searchTokens: cleanedText ? searchTokensFor(cleanedText) : undefined,
             mediaUrl: mediaUrl || null,
@@ -94,21 +134,23 @@ export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema
             isForwarded,
         });
 
-        conversation.messages.push(newMessage._id);
-
-        await Promise.all([conversation.save(), newMessage.save()]);
-
-        const populatedMessage = await newMessage.populate<WithSenderAndReply>(WITH_SENDER_AND_REPLY);
-
-        // Decrypt message before sending to sockets/frontend
-        if (populatedMessage.message) {
-            populatedMessage.message = decryptText(populatedMessage.message);
-        }
-        if (populatedMessage.replyTo && populatedMessage.replyTo.message) {
-            populatedMessage.replyTo.message = decryptText(
-                populatedMessage.replyTo.message,
+        newMessage.seq = await appendMessage(conversation._id, newMessage._id);
+        try {
+            await newMessage.save();
+        } catch (error) {
+            // Two copies of the same send arrived at once and the other one
+            // won: drop this one from the chat and answer with the winner
+            if (!clientId || !isDuplicateKeyError(error)) throw error;
+            await Conversation.updateOne(
+                { _id: conversation._id },
+                { $pull: { messages: newMessage._id } },
             );
+            const winner = await Message.findOne({ senderId, clientId });
+            if (!winner) throw error;
+            return respond(200, await readableMessage(winner));
         }
+
+        const populatedMessage = await readableMessage(newMessage);
 
         if (conversation.isGroupChat) {
             io.to(conversation._id.toString()).emit(
@@ -140,18 +182,7 @@ export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema
             );
         }
 
-        if (isNewConversation) {
-            const populatedConv = await conversation.populate(
-                "participants",
-                "fullName profilePic username isPublic",
-            );
-            return res.status(201).json({
-                newMessage: populatedMessage,
-                newConversation: populatedConv,
-            });
-        }
-
-        res.status(201).json({ newMessage: populatedMessage });
+        return respond(201, populatedMessage);
     } catch (error) {
         console.error("Error in sendMessage controller: ", errorMessage(error));
         res.status(500).json({ error: "Internal server error" });
@@ -161,7 +192,7 @@ export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema
 export const getMessages = async (req: ValidatedRequest<typeof getMessagesSchema>, res: Response) => {
     try {
         const { id: conversationId } = req.params;
-        const { before, limit } = req.query;
+        const { before, after, limit } = req.query;
         const senderId = req.user._id;
 
         const conversation = await Conversation.findById(conversationId);
@@ -172,17 +203,25 @@ export const getMessages = async (req: ValidatedRequest<typeof getMessagesSchema
             });
         }
 
+        await ensureSequenced(conversation._id);
+
         const messageQuery: QueryFilter<MessageFields> = { _id: { $in: conversation.messages } };
 
-        if (before) {
+        if (after !== undefined) {
+            // Catching up after a reconnect: only what came after `after`
+            messageQuery.seq = { $gt: after };
+        } else if (before) {
             const beforeMsg = await Message.findById(before);
-            if (beforeMsg) {
+            if (beforeMsg?.seq != null) {
+                messageQuery.seq = { $lt: beforeMsg.seq };
+            } else if (beforeMsg) {
                 messageQuery.createdAt = { $lt: beforeMsg.createdAt };
             }
         }
 
+        // Newest first, except a catch-up, which comes oldest first
         const messages = await Message.find(messageQuery)
-            .sort({ createdAt: -1 })
+            .sort(after !== undefined ? { seq: 1 } : { seq: -1, createdAt: -1 })
             .limit(limit)
             .populate<{ replyTo: QuotedMessage | null }>({
                 path: "replyTo",
@@ -223,11 +262,16 @@ export const markMessagesAsRead = async (req: ValidatedRequest<typeof conversati
             });
         }
 
+        // Everything up to the newest message is read. Browsers mark their
+        // own messages read up to this number.
+        const upToSeq = conversation.lastSeq ?? undefined;
+
         await Message.updateMany(
             {
                 receiverId: conversationId,
                 senderId: { $ne: userId },
                 status: { $ne: "read" },
+                ...(upToSeq !== undefined && { seq: { $lte: upToSeq } }),
             },
             {
                 $set: { status: "read" },
@@ -238,6 +282,7 @@ export const markMessagesAsRead = async (req: ValidatedRequest<typeof conversati
             io.to(conversationId).emit("messagesRead", {
                 conversationId,
                 userId,
+                upToSeq,
             });
         } else {
             const otherParticipantId = conversation.participants.find(
@@ -248,6 +293,7 @@ export const markMessagesAsRead = async (req: ValidatedRequest<typeof conversati
                 io.to(senderSocketId).emit("messagesRead", {
                     conversationId,
                     userId,
+                    upToSeq,
                 });
             }
         }

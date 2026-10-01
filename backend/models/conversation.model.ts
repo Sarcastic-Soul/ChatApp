@@ -27,6 +27,11 @@ const conversationSchema = new mongoose.Schema(
 			type: String,
 			default: "",
 		},
+		// Sequence number of the newest message. Missing on chats made before
+		// sequence numbers existed; utils/sequence.ts fills it in.
+		lastSeq: {
+			type: Number,
+		},
 		admins: [
 			{
 				type: mongoose.Schema.Types.ObjectId,

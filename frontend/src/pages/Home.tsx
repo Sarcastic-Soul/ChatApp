@@ -5,6 +5,7 @@ import { Flex, Box } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import useConversation from "../zustand/useConversation";
 import useNotificationChat from "../hooks/useNotificationChat";
+import useDelivery from "../hooks/useDelivery";
 
 const MIN_SIDEBAR = 260;
 
@@ -12,6 +13,7 @@ const Home = () => {
     const { selectedConversation } = useConversation();
     const isMobile = useMediaQuery("(max-width: 768px)");
     useNotificationChat();
+    useDelivery();
 
     // Start at a quarter of the window, kept between 280px and 400px
     const [sidebarWidth, setSidebarWidth] = useState(() =>
