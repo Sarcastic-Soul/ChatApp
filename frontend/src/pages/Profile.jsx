@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuthContext } from "../context/AuthContext";
 import useGetUserDetails from "../hooks/useGetUserDetails";
@@ -16,6 +16,65 @@ import {
     Tooltip,
 } from "@mantine/core";
 import Avatar from "../components/Avatar";
+import {
+    disablePush,
+    enablePush,
+    getPushPublicKey,
+    isPushSupported,
+    isSubscribed,
+    needsHomeScreen,
+} from "../utils/push";
+
+// "Notifications on this device", shown only when the server has push keys
+const usePushSetting = () => {
+    const [publicKey, setPublicKey] = useState(null);
+    const [enabled, setEnabled] = useState(false);
+    const [busy, setBusy] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+        getPushPublicKey()
+            .then(async (key) => {
+                // Read the current state before showing the switch
+                const subscribed = key ? await isSubscribed() : false;
+                if (!active) return;
+                setEnabled(subscribed);
+                setPublicKey(key);
+            })
+            .catch(() => {});
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    const toggle = async (event) => {
+        const turnOn = event.currentTarget.checked;
+        setBusy(true);
+        try {
+            if (turnOn) {
+                await enablePush(publicKey);
+            } else {
+                await disablePush();
+            }
+            setEnabled(turnOn);
+        } catch (error) {
+            notifications.show({ message: error.message, color: "red" });
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    let note = "Get a notification for new messages when ChatApp isn't open.";
+    if (!isPushSupported()) {
+        note = needsHomeScreen()
+            ? "On iPhone and iPad, add ChatApp to your home screen first (Share, then Add to Home Screen)."
+            : "This browser doesn't support notifications.";
+    } else if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+        note = "Notifications are blocked. Allow them in your browser's site settings.";
+    }
+
+    return { available: Boolean(publicKey), enabled, busy, toggle, note };
+};
 
 const Profile = () => {
     const { authUser, setAuthUser } = useAuthContext();
@@ -24,6 +83,7 @@ const Profile = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [isUpdatingPrivacy, setIsUpdatingPrivacy] = useState(false);
     const navigate = useNavigate();
+    const push = usePushSetting();
 
     const handleImageChange = async (file) => {
         if (!file) return;
@@ -194,6 +254,29 @@ const Profile = () => {
                                 />
                             ),
                         },
+                        ...(push.available
+                            ? [
+                                  {
+                                      label: "Notifications",
+                                      value: (
+                                          <span>
+                                              {push.enabled ? "On for this device" : "Off"}
+                                              <Text span size="sm" c="dimmed" fw={400} display="block">
+                                                  {push.note}
+                                              </Text>
+                                          </span>
+                                      ),
+                                      action: (
+                                          <Switch
+                                              checked={push.enabled}
+                                              onChange={push.toggle}
+                                              disabled={push.busy || !isPushSupported()}
+                                              aria-label="Notifications on this device"
+                                          />
+                                      ),
+                                  },
+                              ]
+                            : []),
                     ]}
                 />
             )}

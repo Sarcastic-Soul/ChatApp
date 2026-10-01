@@ -47,6 +47,7 @@ The backend runs on Render's free tier. A GitHub Actions job pings it every 10 m
 **Calls**
 - Voice and video calls between browsers over WebRTC, with mute and camera toggles
 - Missed and finished calls are logged in the chat
+- Push notifications for new messages while the app is closed (on iPhone, after adding it to the home screen)
 
 **Groups**
 - Create groups, rename them, change the icon, add and remove members
@@ -89,6 +90,8 @@ d2 docs/architecture.d2 docs/architecture.svg
 **Input checks.** Every route that takes input runs its params, query and body through a [zod](https://zod.dev) schema (`backend/validation/schemas.js`). Bad input gets a `400` with a readable message, and unknown fields are dropped before they reach the controller. Socket event payloads are checked too, and malformed ones are ignored.
 
 **Calls.** The two browsers swap WebRTC offers, answers and ICE candidates through the socket server, then send audio and video straight to each other. Google's STUN servers help each browser find its public address. When both people sit behind strict NATs, such as mobile data or office Wi-Fi, a direct path often can't be found, so the backend also hands out short-lived TURN relay credentials from Cloudflare or Metered (`GET /api/calls/ice-servers`). The provider key stays on the server, and the browser only sees credentials that expire within a day.
+
+**Notifications.** When a message arrives for someone with no tab open, the backend sends a Web Push notification (`web-push`, VAPID keys) to every browser they turned notifications on in. The payload is encrypted for that browser, so the push service (Google, Mozilla or Apple) can't read the message preview. The service worker (`frontend/public/sw.js`) shows it, and clicking it opens that chat. Subscriptions the push service has dropped are deleted, and logging out turns notifications off for that browser.
 
 **Magic reply.** The backend sends the last 10 messages (500 characters each, at most) to Groq's OpenAI-compatible chat API using `openai/gpt-oss-120b`. One draft uses a few hundred tokens, which keeps it far below the free tier's 8K tokens a minute. If Groq rate limits the request, the user is asked to try again in a minute.
 
@@ -217,7 +220,7 @@ cd frontend && pnpm exec playwright install chromium && pnpm run test:e2e
 
 The backend tests need no setup and never touch a real database. They start an in-memory MongoDB with `mongodb-memory-server` (the binary, about 120 MB, downloads on the first run), give each test file its own database, and use fake secrets from `backend/vitest.config.js`.
 
-- **Backend (116 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response, and TURN credentials from mocked Cloudflare and Metered responses. Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status and that bad payloads are dropped.
+- **Backend (126 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response, TURN credentials from mocked Cloudflare and Metered responses, and push notifications with a mocked `web-push` (who gets one, the payload, dropped subscriptions). Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status and that bad payloads are dropped.
 - **Frontend (41 tests):** the login and sign-up pages with Testing Library on jsdom (form submit, server errors, client checks, the saved session check), the Zustand conversation store, the IndexedDB message cache (on `fake-indexeddb`) and the time formatters.
 - **End to end (Playwright):** starts the real backend on an in-memory MongoDB and the Vite app, then two browsers sign up, start a chat and swap messages live over the socket.
 
@@ -238,6 +241,8 @@ The backend reads `backend/.env` with Node's built-in `--env-file-if-exists`, so
 | `GROQ_API_KEY` | For magic reply | Key from [console.groq.com/keys](https://console.groq.com/keys) |
 | `GROQ_MODEL` | No | Groq model ID. Defaults to `openai/gpt-oss-120b` |
 | `CLOUDFLARE_TURN_KEY_ID`, `CLOUDFLARE_TURN_API_TOKEN` | No | Cloudflare Realtime TURN key. Lets calls connect through strict NATs (mobile data, office Wi-Fi) |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | For push notifications | Make a pair with `npx web-push generate-vapid-keys`. Without them the notifications setting is hidden |
+| `VAPID_SUBJECT` | With VAPID keys | Contact for the push services, e.g. `mailto:you@example.com` |
 | `METERED_DOMAIN`, `METERED_API_KEY` | No | Metered TURN instead of Cloudflare, e.g. `yourapp.metered.live`. With neither set, calls use STUN only |
 | `PORT` | No | Defaults to `5000` |
 | `NODE_ENV` | No | Set to `development` locally, so the login cookie works over plain HTTP |
@@ -282,6 +287,10 @@ All routes start with `/api`. Every route except signup, login and logout needs 
 | `PUT` | `/groups/:groupId/admins/add` | Make a member an admin (admins) |
 | `PUT` | `/groups/:groupId/admins/remove` | Remove an admin (admins) |
 | `DELETE` | `/groups/:groupId/delete` | Delete the group (admins) |
+| `GET` | `/calls/ice-servers` | STUN and TURN servers for a call |
+| `GET` | `/push/public-key` | VAPID public key (no login needed; `404` when push isn't set up) |
+| `POST` | `/push/subscribe` | Save this browser's push subscription |
+| `POST` | `/push/unsubscribe` | Remove this browser's push subscription |
 | `GET` | `/cloudinary/signature` | Signed upload for chat media (also `/profile-pic` and `/group-icon`) |
 
 `GET /healthz` (outside `/api`) returns `{ "status": "ok" }` and is what the keep-alive job pings.

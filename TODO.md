@@ -35,9 +35,10 @@ otherwise.
   - Fixes calls that connect with no audio or video on mobile data and
     office networks
 - [ ] **Web Push notifications**
-  - [ ] Generate VAPID keys, store push subscriptions per user
-  - [ ] Service worker that shows a notification for new messages while the
+  - [x] Generate VAPID keys, store push subscriptions per user
+  - [x] Service worker that shows a notification for new messages while the
         tab is closed
+  - [ ] Set the VAPID variables on Render
   - On iPhone this only works when the app is added to the home screen
 - [ ] **Message search**
   - Messages are encrypted in the database, so a MongoDB text index can't

@@ -16,6 +16,7 @@ import { Notifications } from "@mantine/notifications";
 import { MotionConfig, LazyMotion, domAnimation } from "motion/react";
 import useThemeStore from "./zustand/useThemeStore.js";
 import { buildTheme, cssVariablesResolver } from "./theme.js";
+import { registerServiceWorker } from "./utils/push.js";
 
 const ThemeWrapper = () => {
     const primaryColor = useThemeStore((state) => state.primaryColor);
@@ -34,6 +35,8 @@ const ThemeWrapper = () => {
         </MantineProvider>
     );
 };
+
+registerServiceWorker();
 
 ReactDOM.createRoot(document.getElementById("root")).render(
     <React.StrictMode>

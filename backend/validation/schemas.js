@@ -191,3 +191,24 @@ export const privacySchema = {
         isPublic: z.boolean({ error: "Privacy setting must be true or false" }),
     }),
 };
+
+// ---------- push ----------
+
+const pushEndpoint = httpsUrl("Push endpoint").max(1000, "Push endpoint is too long");
+
+export const pushSubscribeSchema = {
+    body: z.object({
+        endpoint: pushEndpoint,
+        keys: z.object(
+            {
+                p256dh: requiredText("Push key", 200),
+                auth: requiredText("Push auth secret", 100),
+            },
+            { error: "Push keys are required" },
+        ),
+    }),
+};
+
+export const pushUnsubscribeSchema = {
+    body: z.object({ endpoint: pushEndpoint }),
+};

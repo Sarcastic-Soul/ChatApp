@@ -4,6 +4,7 @@ import User from "../models/user.model.js";
 import { getReceiverSocketId, io } from "../socket/socket.js";
 import { encryptText, decryptText } from "../utils/encryption.js";
 import { cleanProfanity } from "../utils/profanityFilter.js";
+import { messageNotification, sendPushToUsers } from "../utils/push.js";
 
 export const sendMessage = async (req, res) => {
     try {
@@ -105,6 +106,21 @@ export const sendMessage = async (req, res) => {
             if (receiverSocketId) {
                 io.to(receiverSocketId).emit("newMessage", populatedMessage);
             }
+        }
+
+        // People with no open tab get a push notification instead
+        const offlineIds = conversation.participants.filter(
+            (p) => !p.equals(senderId) && !getReceiverSocketId(p),
+        );
+        if (offlineIds.length) {
+            const payload = messageNotification({
+                conversation,
+                message: populatedMessage,
+                sender: populatedMessage.senderId,
+            });
+            sendPushToUsers(offlineIds, payload).catch((error) =>
+                console.error("Error sending push notifications:", error.message),
+            );
         }
 
         if (isNewConversation) {
