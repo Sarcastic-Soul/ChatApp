@@ -12,6 +12,11 @@ export const sendMessage = async (req, res) => {
         const { id: conversationIdOrUserId } = req.params;
         const senderId = req.user._id;
 
+        // The 1-on-1 lookup below would otherwise match any of the sender's chats
+        if (conversationIdOrUserId === senderId.toString()) {
+            return res.status(400).json({ error: "You can't message yourself." });
+        }
+
         let isNewConversation = false;
         let conversation = await Conversation.findById(conversationIdOrUserId);
 
@@ -43,6 +48,13 @@ export const sendMessage = async (req, res) => {
             return res.status(403).json({
                 error: "You are not a participant in this conversation.",
             });
+        }
+
+        // Replies show the quoted text, so it must come from this chat
+        if (replyTo && !conversation.messages.some((id) => id.equals(replyTo))) {
+            return res
+                .status(400)
+                .json({ error: "You can only reply to messages in this chat." });
         }
 
         const cleanedText = message ? cleanProfanity(message) : "";
@@ -220,9 +232,13 @@ export const addReaction = async (req, res) => {
         const { reaction } = req.body;
         const userId = req.user._id;
 
-        const message = await Message.findById(messageId);
+        const [message, conversation] = await Promise.all([
+            Message.findById(messageId),
+            Conversation.findOne({ messages: messageId }),
+        ]);
 
-        if (!message) {
+        // Treat messages in chats the user is not part of as missing
+        if (!message || !conversation?.participants.includes(userId)) {
             return res.status(404).json({ error: "Message not found" });
         }
 
@@ -251,11 +267,9 @@ export const addReaction = async (req, res) => {
             messageObj.message = decryptText(messageObj.message);
         }
 
-        const conversation = await Conversation.findOne({
-            messages: messageId,
-        });
-
-        if (conversation) {
+        if (conversation.isGroupChat) {
+            io.to(conversation._id.toString()).emit("messageReaction", messageObj);
+        } else {
             const receiverId = conversation.participants.find(
                 (p) => p.toString() !== userId.toString(),
             );
