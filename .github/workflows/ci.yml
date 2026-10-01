@@ -132,9 +132,22 @@ jobs:
           pnpm -C backend install --frozen-lockfile
           pnpm -C frontend install --frozen-lockfile
 
+      - name: Find the Playwright version
+        id: playwright
+        working-directory: frontend
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # The Ubuntu runner already has the system libraries Chromium needs
+      # (it ships Google Chrome), so --with-deps and its apt install are skipped.
       - name: Install Chromium for Playwright
         working-directory: frontend
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install chromium
 
       - name: Run Playwright
         working-directory: frontend
