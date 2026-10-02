@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useAuthContext } from "../context/AuthContext";
 import { notifications } from "@mantine/notifications";
 import { clearAllMessages } from "../utils/messageCacheDB";
+import { forgetIdentity } from "../utils/e2ee/identity";
+import { forgetChatKeys } from "../utils/e2ee/chats";
 import { disablePush } from "../utils/push";
 import { errorMessage } from "../utils/errorMessage";
 
@@ -33,6 +35,10 @@ const useLogout = () => {
             } catch (dbError) {
                 console.warn('Failed to clear IndexedDB, trying alternative method:', dbError);
             }
+
+            // This browser's private key goes too; the passphrase restores it
+            forgetChatKeys();
+            await forgetIdentity().catch((keyError) => console.warn("Failed to delete keys:", keyError));
 
             localStorage.removeItem("chat-user");
             setAuthUser(null);

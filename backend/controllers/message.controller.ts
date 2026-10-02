@@ -25,25 +25,34 @@ import { cleanProfanity } from "../utils/profanityFilter.ts";
 import { messageNotification, sendPushToUsers } from "../utils/push.ts";
 import { matchesQuery, queryTokensFor, searchTokensFor } from "../utils/searchIndex.ts";
 import { appendMessage, ensureSequenced } from "../utils/sequence.ts";
+import { checkChatKey, type KeyRefusal } from "../utils/chatKeys.ts";
 
 // Messages go out with the sender's profile and the message they reply to
 const WITH_SENDER_AND_REPLY = [
     { path: "senderId", select: "fullName profilePic username isPublic" },
-    { path: "replyTo", select: "message mediaType mediaUrl senderId" },
+    { path: "replyTo", select: "message mediaType mediaUrl senderId e2ee" },
 ];
 type WithSenderAndReply = { senderId: PublicUser; replyTo: QuotedMessage | null };
+
+// The text as the browser should get it. End-to-end encrypted text goes
+// out as the ciphertext it came in as; only the browsers can read it.
+const outgoingText = (message: { message?: string | null; e2ee?: unknown }) => {
+    if (!message.message) return "";
+    return message.e2ee ? message.message : decryptText(message.message);
+};
 
 // Decrypts a saved message and the message it quotes, ready to send out
 const readableMessage = async (message: MessageDocument) => {
     const populated = await message.populate<WithSenderAndReply>(WITH_SENDER_AND_REPLY);
-    if (populated.message) {
-        populated.message = decryptText(populated.message);
-    }
-    if (populated.replyTo && populated.replyTo.message) {
-        populated.replyTo.message = decryptText(populated.replyTo.message);
+    populated.message = outgoingText(populated);
+    if (populated.replyTo) {
+        populated.replyTo.message = outgoingText(populated.replyTo);
     }
     return populated;
 };
+
+const refuseKeys = (res: Response, refusal: KeyRefusal) =>
+    res.status(refusal.status).json({ error: refusal.error, code: refusal.code });
 
 type ReadableMessage = Awaited<ReturnType<typeof readableMessage>>;
 
@@ -53,7 +62,8 @@ const isDuplicateKeyError = (error: unknown) =>
 export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema>, res: Response) => {
     try {
         // Checked by sendMessageSchema. System messages are only made by the server.
-        const { message, mediaUrl, mediaType, replyTo, isCall, isForwarded, clientId } = req.body;
+        const { message, mediaUrl, mediaType, replyTo, isCall, isForwarded, clientId, e2ee, newKey } =
+            req.body;
         const { id: conversationIdOrUserId } = req.params;
         const senderId = req.user._id;
 
@@ -119,13 +129,19 @@ export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema
                 .json({ error: "You can only reply to messages in this chat." });
         }
 
-        const cleanedText = message ? cleanProfanity(message) : "";
+        const refusal = await checkChatKey({ conversation, senderId, e2ee, newKey, plainAllowed: isCall });
+        if (refusal) return refuseKeys(res, refusal);
+
+        // The browser already filtered and encrypted end-to-end text; the
+        // server can't read it, so it can't index it for search either
+        const cleanedText = !e2ee && message ? cleanProfanity(message) : "";
 
         const newMessage = new Message({
             senderId,
             receiverId: conversation._id,
             clientId,
-            message: cleanedText ? encryptText(cleanedText) : "",
+            message: e2ee ? message : cleanedText ? encryptText(cleanedText) : "",
+            e2ee,
             searchTokens: cleanedText ? searchTokensFor(cleanedText) : undefined,
             mediaUrl: mediaUrl || null,
             mediaType,
@@ -212,20 +228,15 @@ export const getMessages = async (req: ValidatedRequest<typeof getMessagesSchema
             .limit(limit)
             .populate<{ replyTo: QuotedMessage | null }>({
                 path: "replyTo",
-                select: "message mediaType mediaUrl senderId",
+                select: "message mediaType mediaUrl senderId e2ee",
             })
             .lean();
 
-        // Decrypt all messages before sending to client
+        // Decrypt what the server encrypted; end-to-end text stays as it is
         const decryptedMessages = messages.map((msg) => {
-            const decryptedMsg = {
-                ...msg,
-                message: msg.message ? decryptText(msg.message) : "",
-            };
-            if (decryptedMsg.replyTo && decryptedMsg.replyTo.message) {
-                decryptedMsg.replyTo.message = decryptText(
-                    decryptedMsg.replyTo.message,
-                );
+            const decryptedMsg = { ...msg, message: outgoingText(msg) };
+            if (decryptedMsg.replyTo) {
+                decryptedMsg.replyTo.message = outgoingText(decryptedMsg.replyTo);
             }
             return decryptedMsg;
         });
@@ -401,7 +412,7 @@ export const generateMagicReply = async (req: ValidatedRequest<typeof magicReply
 export const editMessage = async (req: ValidatedRequest<typeof editMessageSchema>, res: Response) => {
     try {
         const { messageId } = req.params;
-        const { message: newText } = req.body;
+        const { message: newText, e2ee, newKey } = req.body;
         const userId = req.user._id;
 
         const message = await Message.findById(messageId);
@@ -414,9 +425,33 @@ export const editMessage = async (req: ValidatedRequest<typeof editMessageSchema
             return res.status(403).json({ error: "Unauthorized" });
         }
 
-        const cleanedText = newText ? cleanProfanity(newText) : "";
-        message.message = encryptText(cleanedText);
-        message.searchTokens = searchTokensFor(cleanedText);
+        const conversation = await Conversation.findOne({
+            messages: messageId,
+        });
+
+        // The new text follows the chat's current rules, so an edit in a
+        // chat that went end to end gets encrypted too
+        if (conversation) {
+            const refusal = await checkChatKey({
+                conversation,
+                senderId: userId,
+                e2ee,
+                newKey,
+                plainAllowed: message.isCall,
+            });
+            if (refusal) return refuseKeys(res, refusal);
+        }
+
+        if (e2ee) {
+            message.message = newText;
+            message.e2ee = e2ee;
+            message.searchTokens = undefined;
+        } else {
+            const cleanedText = cleanProfanity(newText);
+            message.message = encryptText(cleanedText);
+            message.e2ee = undefined;
+            message.searchTokens = searchTokensFor(cleanedText);
+        }
         message.isEdited = true;
         await message.save();
 
@@ -424,16 +459,10 @@ export const editMessage = async (req: ValidatedRequest<typeof editMessageSchema
 
         const populatedObj = messageObj.toObject();
         delete populatedObj.searchTokens;
-        if (populatedObj.message) {
-            populatedObj.message = decryptText(populatedObj.message);
+        populatedObj.message = outgoingText(populatedObj);
+        if (populatedObj.replyTo) {
+            populatedObj.replyTo.message = outgoingText(populatedObj.replyTo);
         }
-        if (populatedObj.replyTo && populatedObj.replyTo.message) {
-            populatedObj.replyTo.message = decryptText(populatedObj.replyTo.message);
-        }
-
-        const conversation = await Conversation.findOne({
-            messages: messageId,
-        });
 
         if (conversation) {
             emitToChat(conversation, "messageEdited", populatedObj, userId);
@@ -463,6 +492,7 @@ export const deleteMessage = async (req: ValidatedRequest<typeof messageIdSchema
 
         message.isDeleted = true;
         message.message = encryptText("This message was deleted");
+        message.e2ee = undefined;
         message.searchTokens = undefined;
         await message.save();
 
@@ -470,8 +500,8 @@ export const deleteMessage = async (req: ValidatedRequest<typeof messageIdSchema
 
         const populatedObj = messageObj.toObject();
         populatedObj.message = "This message was deleted";
-        if (populatedObj.replyTo && populatedObj.replyTo.message) {
-            populatedObj.replyTo.message = decryptText(populatedObj.replyTo.message);
+        if (populatedObj.replyTo) {
+            populatedObj.replyTo.message = outgoingText(populatedObj.replyTo);
         }
 
         const conversation = await Conversation.findOne({

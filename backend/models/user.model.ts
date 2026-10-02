@@ -24,6 +24,29 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
             default: true,
         },
+        // End-to-end encryption. The public half of the user's P-256 key
+        // pair, made in their browser. keyVersion goes up when they reset it.
+        publicKey: {
+            type: String,
+            default: undefined,
+        },
+        keyVersion: {
+            type: Number,
+            default: undefined,
+        },
+        // The private key, encrypted in the browser with a key derived from a
+        // passphrase the server never sees. Lets a new browser restore it.
+        keyBackup: {
+            type: {
+                salt: String,
+                iv: String,
+                data: String,
+                iterations: Number,
+                _id: false,
+            },
+            default: undefined,
+            select: false,
+        },
         // createdAt, updatedAt
     },
     { timestamps: true },

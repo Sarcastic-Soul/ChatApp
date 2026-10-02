@@ -1,6 +1,6 @@
 # ChatApp
 
-A full-stack real-time chat app with group chats, voice notes, and peer-to-peer voice and video calls. Messages are encrypted with AES-256 before they are stored, and an AI assistant can draft your next reply in the tone you pick.
+A full-stack real-time chat app with group chats, voice notes, and peer-to-peer voice and video calls. Messages are end-to-end encrypted in the browser, so the server stores text it can't read, and an AI assistant can draft your next reply in the tone you pick.
 
 [![Live demo](https://img.shields.io/badge/Live_demo-socket--chat-111?style=flat-square&logo=vercel)](https://socket-chat-nine-tau.vercel.app/)
 [![Video tour](https://img.shields.io/badge/Video_tour-YouTube-c4302b?style=flat-square&logo=youtube)](https://youtu.be/9GX83N07K70)
@@ -20,6 +20,8 @@ Open the [live app](https://socket-chat-nine-tau.vercel.app/) and press **Try th
 | Username | Password |
 | --- | --- |
 | `alice` | `password123` |
+
+The demo account is shared, so its encryption passphrase is public too (`alice demo passphrase`) and is filled in for you. The seeded people it chats with have never logged in and have no keys, so those chats are encrypted on the server only. Sign up two accounts of your own to see end-to-end encryption.
 
 The backend runs on Render's free tier. A GitHub Actions job pings it every 10 minutes to keep it awake, but if it has been asleep, the first request can take up to a minute.
 
@@ -42,7 +44,7 @@ The backend runs on Render's free tier. A GitHub Actions job pings it every 10 m
 - One-on-one and group chats, with typing indicators, read receipts and online status
 - Replies, edits, delete for everyone, reactions and forwarding
 - Images, video and voice notes, uploaded straight from the browser to Cloudinary
-- Search every chat's messages from the sidebar, even though they're encrypted in the database; picking a result jumps to that message
+- Search every chat's messages from the sidebar; picking a result jumps to that message. End-to-end encrypted messages are searched on the device, the rest on the server
 - Messages written offline or while the server is waking up wait in an outbox and go out once it's reachable, never twice, in the same order on every device
 - Chats open from an IndexedDB cache, then refresh from the server (75% faster on a 3G connection, see [Cache benchmark](#cache-benchmark))
 - Can run on several servers at once, joined through Redis, so a message reaches the other person whichever server each is on (see [Load test](#load-test))
@@ -59,10 +61,13 @@ The backend runs on Render's free tier. A GitHub Actions job pings it every 10 m
 **AI magic reply**
 - Drafts your next message from the last few messages of the chat
 - Pick a tone (Auto, Professional, Casual or Funny), then edit the draft before sending
+- In an end-to-end encrypted chat it asks first, since the recent messages leave the browser as plain text
 
 **Privacy and safety**
-- AES-256 encryption for every message stored in the database
-- Profanity is masked (`****`) before a message is saved
+- End-to-end encryption for one-on-one chats and groups (ECDH P-256 and AES-GCM in the Web Crypto API), with a lock in the chat header when it's on
+- A passphrase backup of your key, so a new browser can read your history; the server never sees the passphrase
+- AES-256 encryption at rest for everything else: chats where someone has no key yet, call logs and group notices
+- Profanity is masked (`****`) before a message is sent, in the browser for encrypted chats
 - Private profiles don't show up in user lists, and can't be messaged by new people or added to groups
 
 **Interface**
@@ -92,9 +97,13 @@ d2 docs/architecture.d2 docs/architecture.svg
 
 **Several servers.** Socket.IO keeps its rooms in each server's memory, so with two servers a message saved on one would never reach a user whose socket is on the other. When `REDIS_URL` is set, the backend uses `@socket.io/redis-adapter`: every broadcast goes through Redis pub/sub, and each server delivers it to its own sockets. Online status moves to Redis too: each server keeps a hash of its users and their open-socket counts, and refreshes a 30-second "alive" key every 10 seconds, so if a server crashes its users drop off the online list instead of staying online forever. The message rate limit counts in Redis (`rate-limit-redis`), so it holds across servers. Without `REDIS_URL` all of this stays in memory, which is what the single free Render instance uses. `docker-compose.scale.yml` runs three backends behind nginx locally: browsers start Socket.IO on long-polling, and every polling request must reach the server that holds the session, so those stick to one server by client IP. A client that opens a WebSocket straight away needs only one connection, so it can land on any server. API requests go round robin. See [Load test](#load-test) for numbers.
 
-**Encryption.** Message text is encrypted with AES-256-CBC (Node `crypto`) and a random IV before it is saved, and decrypted only when a member of the chat asks for it. The server won't start without `ENCRYPTION_KEY`.
+**End-to-end encryption.** Each user has a P-256 ECDH key pair made in the browser with the Web Crypto API. The public key goes to the server (`PUT /api/keys/me`). The private key is stored in IndexedDB as a non-extractable `CryptoKey`, so page scripts can use it but can't read it out. A copy of it, encrypted with AES-GCM under a key made from the user's passphrase (PBKDF2-SHA256, 600,000 rounds), is stored on the server so a new browser can restore it. The server never gets the passphrase. Each chat has a random AES-GCM-256 key. It's sealed once per member: a one-time ECDH key pair and the member's public key give a shared secret, HKDF-SHA256 turns that into an AES key, and that wraps the chat key. Once every member of a chat has a key, the server refuses plain text there (`409` with `code: "keys_changed"`), so every new message is ciphertext. A chat key is only used while its copies match the current members and their key versions exactly. When someone joins, leaves or resets their key, the next sender makes a new key (the next "epoch") and sends it along with the message. The server checks that it covers every member, and a unique index on chat and epoch means only one of two people racing to make it wins; the other gets a `409`, seals the message again with the winner's key and sends once more. New members can't read messages from before they joined. The browser decrypts messages wherever they come in (history, the socket, catch-up, the outbox) and keeps the readable copies in its IndexedDB cache until logout, which also deletes the private key.
 
-**Search.** Encrypted text can't go in a MongoDB text index, so each message also gets a blind index: a list of keyed hashes (HMAC-SHA256, with a key derived from `ENCRYPTION_KEY`) of its words and word starts, from 3 to 12 letters (two-letter words are stored whole). "meeting" is stored as the hashes of "mee", "meet", ... "meeting", so typing "meet" finds it. A search hashes the query words the same way, finds messages with every hash in chats the user belongs to, then decrypts the hits and checks them again. Someone with only the database sees hashes, not words, but can tell when two messages share a word; that is the trade-off for searching on the server. Edits update the hashes and deletes clear them. `pnpm run backfill:search` adds hashes to messages saved before search existed.
+**What end-to-end encryption doesn't cover.** Images, videos and voice notes sit on Cloudinary unencrypted. Reactions, who talks to whom and when, and edit and read states are visible to the server. There are no safety numbers yet, so a server that handed out a fake public key could read new messages; people have to trust the server's key list. A weak passphrase can be guessed offline by someone with the database, since PBKDF2 only slows that down. Push notifications say "New message" instead of the text. Magic reply sends recent messages to Groq as plain text after asking. Search only finds encrypted messages already in this browser's cache.
+
+**Encryption at rest.** Text the server can read (chats where someone has no key yet, call logs, group notices) is encrypted with AES-256-CBC (Node `crypto`) and a random IV before it is saved, and decrypted only when a member of the chat asks for it. The server won't start without `ENCRYPTION_KEY`.
+
+**Search.** Text encrypted at rest can't go in a MongoDB text index, so each message also gets a blind index: a list of keyed hashes (HMAC-SHA256, with a key derived from `ENCRYPTION_KEY`) of its words and word starts, from 3 to 12 letters (two-letter words are stored whole). "meeting" is stored as the hashes of "mee", "meet", ... "meeting", so typing "meet" finds it. A search hashes the query words the same way, finds messages with every hash in chats the user belongs to, then decrypts the hits and checks them again. Someone with only the database sees hashes, not words, but can tell when two messages share a word; that is the trade-off for searching on the server. Edits update the hashes and deletes clear them. `pnpm run backfill:search` adds hashes to messages saved before search existed. End-to-end encrypted messages get no hashes; the browser searches its own cache for them and merges the results.
 
 **Input checks.** Every route that takes input runs its params, query and body through a [zod](https://zod.dev) schema (`backend/validation/schemas.ts`). Bad input gets a `400` with a readable message, and unknown fields are dropped before they reach the controller. The controllers take their request types from the same schemas (`ValidatedRequest<typeof sendMessageSchema>`), so a field the schema doesn't define is a type error. Socket event payloads are checked too, and malformed ones are ignored.
 
@@ -253,9 +262,9 @@ cd frontend && pnpm exec playwright install chromium && pnpm run test:e2e
 
 The backend tests need no setup and never touch a real database. They start an in-memory MongoDB with `mongodb-memory-server` (the binary, about 120 MB, downloads on the first run), give each test file its own database, and use fake secrets from `backend/vitest.config.ts`.
 
-- **Backend (158 tests, about 87% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response, TURN credentials from mocked Cloudflare and Metered responses, push notifications with a mocked `web-push` (who gets one, the payload, dropped subscriptions), message search (word starts, privacy across chats, edits and deletes, the backfill, and that hashes never reach the client), and delivery (a retried or doubled send saved once, sequence numbers under concurrent sends, numbering older chats, catch-up with `after`). Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status, read receipts with the sequence number, and that bad payloads are dropped. Five more tests run only when `TEST_REDIS_URL` points at a Redis server (CI starts one): a message reaching a socket on a second server, online status across servers and tabs, a crashed server's users going offline, and the rate limit's keys in Redis.
-- **Frontend (56 tests):** the login and sign-up pages with Testing Library on jsdom (form submit, server errors, client checks, the saved session check), the Zustand conversation store (ordering by sequence number, swapping an optimistic message for the saved one), the IndexedDB message cache and outbox (on `fake-indexeddb`), outbox sending (order, offline, retry after a server error, rejected messages, the first message of a new chat) and the time formatters.
-- **End to end (Playwright):** starts the real backend on an in-memory MongoDB and the Vite app, then two browsers sign up, start a chat and swap messages live over the socket. One goes offline, sends a message, comes back, and the other sees it exactly once.
+- **Backend (184 tests, about 86% line coverage):** every REST route through `supertest`, including login and cookies, validation errors, access checks (who can read, react, edit, delete, manage a group), encryption at rest, the profanity filter, the rate limit and magic reply with a mocked Groq response, TURN credentials from mocked Cloudflare and Metered responses, push notifications with a mocked `web-push` (who gets one, the payload, dropped subscriptions), message search (word starts, privacy across chats, edits and deletes, the backfill, and that hashes never reach the client), delivery (a retried or doubled send saved once, sequence numbers under concurrent sends, numbering older chats, catch-up with `after`), and end-to-end encryption (setting and resetting a key, plain text refused once a chat is ready, stale or partial chat keys refused, two people racing to make a key, ciphertext stored and returned untouched, each member seeing only their own key copy, rotation after a member leaves, no search hashes or push previews for ciphertext). Socket tests connect real `socket.io-client` sockets and check the handshake, message and typing delivery, call signaling, group rooms, online status, read receipts with the sequence number, and that bad payloads are dropped. Five more tests run only when `TEST_REDIS_URL` points at a Redis server (CI starts one): a message reaching a socket on a second server, online status across servers and tabs, a crashed server's users going offline, and the rate limit's keys in Redis.
+- **Frontend (65 tests):** the login and sign-up pages with Testing Library on jsdom (form submit, server errors, client checks, the saved session check), the Zustand conversation store (ordering by sequence number, swapping an optimistic message for the saved one), the IndexedDB message cache and outbox (on `fake-indexeddb`), outbox sending (order, offline, retry after a server error, rejected messages, the first message of a new chat), the time formatters, and the encryption code with real Web Crypto (backup with right and wrong passphrases, key copies only their owner can open, the key saved in IndexedDB, sealing a first message for every member, undecryptable messages, the retry after a `409`).
+- **End to end (Playwright):** starts the real backend on an in-memory MongoDB and the Vite app, then two browsers sign up, start a chat and swap messages live over the socket. The test checks that the send request carries only ciphertext. One goes offline, sends a message, comes back, and the other sees it exactly once. Then the second person logs in on a fresh browser, gets a wrong passphrase refused, unlocks with the right one and reads the history.
 
 ### Cache benchmark
 
@@ -340,12 +349,15 @@ All routes start with `/api`. Every route except signup, login and logout needs 
 | `GET` | `/messages/:id?before=&limit=` | Messages in a chat, newest first, 50 at a time |
 | `GET` | `/messages/:id?after=&limit=` | Messages after a sequence number, oldest first (catch-up after a reconnect) |
 | `GET` | `/messages/search?q=&limit=` | Search messages in your chats, newest first (20 by default, 50 at most) |
-| `POST` | `/messages/send/:id` | Send a message to a chat, or to a user to start a chat. A repeat `clientId` returns the saved message |
+| `POST` | `/messages/send/:id` | Send a message to a chat, or to a user to start a chat. A repeat `clientId` returns the saved message. Encrypted messages carry `e2ee: { epoch, iv }`, plus `newKey` when they start a new chat key |
 | `PUT` | `/messages/edit/:messageId` | Edit your message |
 | `DELETE` | `/messages/delete/:messageId` | Delete your message for everyone |
 | `POST` | `/messages/react/:messageId` | Add, change or remove a reaction |
 | `POST` | `/messages/read/:id` | Mark a chat as read |
 | `POST` | `/messages/magic-reply` | Draft a reply with AI |
+| `GET` | `/keys/me` | Your public key, key version and passphrase backup |
+| `PUT` | `/keys/me` | Save your public key and backup (`reset: true` replaces an existing key) |
+| `GET` | `/keys/chats/:id` | A chat's members and their public keys, the newest chat key epoch, and your copies of each chat key. `:id` can be a user ID for a chat that doesn't exist yet |
 | `POST` | `/groups/create` | Create a group |
 | `GET` | `/groups/:groupId` | Group details |
 | `PUT` | `/groups/:groupId/update` | Change the group name or icon (admins) |

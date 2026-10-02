@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 
 const stamp = Date.now().toString(36);
 
+const PASSPHRASE = "e2e test passphrase";
+
 const signUp = async (page, fullName, username) => {
     await page.goto("/signup");
     await page.getByRole("textbox", { name: "Full name" }).fill(fullName);
@@ -9,8 +11,16 @@ const signUp = async (page, fullName, username) => {
     await page.getByRole("textbox", { name: "Password", exact: true }).fill("password123");
     await page.getByRole("textbox", { name: "Confirm password" }).fill("password123");
     await page.getByRole("button", { name: "Create account" }).click();
+
+    // A new account picks the passphrase that backs up its key
+    await expect(page.getByRole("heading", { name: "Choose a passphrase" })).toBeVisible();
+    await page.getByRole("textbox", { name: "Passphrase", exact: true }).fill(PASSPHRASE);
+    await page.getByRole("textbox", { name: "Confirm passphrase" }).fill(PASSPHRASE);
+    await page.getByRole("button", { name: "Turn on encryption" }).click();
     await expect(page.getByRole("navigation", { name: "Chats" })).toBeVisible();
 };
+
+const isSend = (request) => request.method() === "POST" && request.url().includes("/api/messages/send/");
 
 test("two people chat in real time", async ({ browser }) => {
     const aliceContext = await browser.newContext();
@@ -26,8 +36,16 @@ test("two people chat in real time", async ({ browser }) => {
     await alice.getByRole("menuitem", { name: "New chat" }).click();
     await alice.getByRole("dialog").getByText("Bob Test").click();
     await alice.getByRole("textbox", { name: "Message", exact: true }).fill("Hi Bob, it's Alice");
+    const firstSend = alice.waitForRequest(isSend);
     await alice.getByRole("button", { name: "Send" }).click();
     await expect(alice.getByText("Hi Bob, it's Alice")).toBeVisible();
+
+    // Both have keys, so the server only ever sees ciphertext
+    const sent = (await firstSend).postDataJSON();
+    expect(sent.e2ee).toBeTruthy();
+    expect(sent.newKey.envelopes).toHaveLength(2);
+    expect(JSON.stringify(sent)).not.toContain("Hi Bob");
+    await expect(alice.getByLabel("End-to-end encrypted")).toBeVisible();
 
     // Bob opens the chat after a reload and sees the message
     await bob.reload();
@@ -55,8 +73,25 @@ test("two people chat in real time", async ({ browser }) => {
     await expect(bob.getByText("Written on the train")).toHaveCount(1);
     await expect(alice.getByLabel("Sending")).toHaveCount(0);
 
+    // On a new browser Bob unlocks his key with the passphrase and can
+    // read the history
+    const bobLaptop = await (await browser.newContext()).newPage();
+    await bobLaptop.goto("/login");
+    await bobLaptop.getByRole("textbox", { name: "Username" }).fill(`bob_${stamp}`);
+    await bobLaptop.getByRole("textbox", { name: "Password", exact: true }).fill("password123");
+    await bobLaptop.getByRole("button", { name: "Log in" }).click();
+    await bobLaptop.getByRole("textbox", { name: "Passphrase", exact: true }).fill("not the passphrase");
+    await bobLaptop.getByRole("button", { name: "Unlock" }).click();
+    await expect(bobLaptop.getByText("That passphrase didn't work.")).toBeVisible();
+    await bobLaptop.getByRole("textbox", { name: "Passphrase", exact: true }).fill(PASSPHRASE);
+    await bobLaptop.getByRole("button", { name: "Unlock" }).click();
+    await bobLaptop.getByRole("navigation", { name: "Chats" }).getByText("Alice Test").click();
+    await expect(bobLaptop.getByText("Hi Bob, it's Alice")).toBeVisible();
+    await expect(bobLaptop.getByText("Profanity check: **** happens")).toBeVisible();
+
     await aliceContext.close();
     await bobContext.close();
+    await bobLaptop.context().close();
 });
 
 test("a wrong password shows an error", async ({ page }) => {

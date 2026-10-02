@@ -23,7 +23,7 @@ const AuthLayout = ({ title, subtitle, aside, children }: AuthLayoutProps) => {
                     Chat<em>App</em>
                 </Link>
                 <p className="auth-quote">{aside}</p>
-                <p className="auth-small">AES-256 at rest · WebRTC calls · Socket.io</p>
+                <p className="auth-small">End-to-end encrypted · WebRTC calls · Socket.io</p>
             </aside>
 
             <main className="auth-main">

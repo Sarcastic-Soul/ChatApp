@@ -71,12 +71,15 @@ const mediaLabels: Record<string, string> = {
 // receiving browser, so the push service can't read the preview.
 type NotificationInput = {
     conversation: { _id: Types.ObjectId; isGroupChat?: boolean | null; groupName?: string | null };
-    message: { message?: string | null; mediaType?: string | null; isCall?: boolean | null };
+    message: { message?: string | null; mediaType?: string | null; isCall?: boolean | null; e2ee?: unknown };
     sender: { fullName: string; profilePic?: string | null };
 };
 
 export const messageNotification = ({ conversation, message, sender }: NotificationInput): PushPayload => {
-    let text = message.message || mediaLabels[message.mediaType ?? ""] || "New message";
+    // End-to-end encrypted text is ciphertext to the server, so it can't
+    // go in the preview
+    const readable = message.e2ee ? "" : message.message;
+    let text = readable || mediaLabels[message.mediaType ?? ""] || "New message";
     if (message.isCall) text = "Call";
     if (text.length > MAX_PREVIEW) text = `${text.slice(0, MAX_PREVIEW - 1)}…`;
 

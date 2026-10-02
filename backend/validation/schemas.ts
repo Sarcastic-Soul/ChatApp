@@ -5,6 +5,9 @@ import { httpsUrl, objectId, requiredText } from "./fields.ts";
 // request it checks (params, query, body). Unknown fields are dropped.
 
 const MAX_MESSAGE_LENGTH = 5000;
+// AES-GCM ciphertext of a 5000-character message, as base64, with room for
+// characters that take several bytes in UTF-8
+const MAX_CIPHERTEXT_LENGTH = 28000;
 const MAX_NAME_LENGTH = 50;
 
 // bcrypt only uses the first 72 bytes of a password
@@ -45,6 +48,53 @@ export const loginSchema = {
     }),
 };
 
+// ---------- end-to-end encryption ----------
+
+// Keys and ciphertext travel as base64
+const base64 = (label: string, max: number) =>
+    z
+        .string({ error: `${label} is required` })
+        .max(max, `${label} is too long`)
+        .regex(/^[A-Za-z0-9+/]+={0,2}$/, `${label} must be base64`);
+
+const publicKey = base64("Public key", 200);
+
+const envelope = z.object({
+    userId: objectId("Member id"),
+    keyVersion: z.number().int().min(1),
+    ephemeralKey: publicKey,
+    iv: base64("IV", 32),
+    wrappedKey: base64("Wrapped key", 200),
+});
+
+// A new chat key, encrypted once for each member
+const newChatKey = z.object({
+    epoch: z.number().int().min(1),
+    envelopes: z.array(envelope).min(1).max(101),
+});
+
+// Which chat key the text was encrypted with
+const e2eeFields = z.object({
+    epoch: z.number().int().min(1),
+    iv: base64("IV", 32),
+});
+
+export const setMyKeySchema = {
+    body: z.object({
+        publicKey,
+        backup: z.object(
+            {
+                salt: base64("Salt", 64),
+                iv: base64("IV", 32),
+                data: base64("Backup", 1000),
+                iterations: z.number().int().min(100_000).max(10_000_000),
+            },
+            { error: "A passphrase backup is required" },
+        ),
+        reset: z.boolean().default(false),
+    }),
+};
+
 // ---------- messages ----------
 
 const conversationParams = z.object({ id: objectId("Conversation id") });
@@ -70,6 +120,8 @@ export const getMessagesSchema = {
 };
 
 // The id is a conversation id, or a user id when starting a new 1-on-1 chat
+export const chatKeysSchema = { params: conversationParams };
+
 export const searchMessagesSchema = {
     query: z.object({
         q: requiredText("Search text", 100),
@@ -77,14 +129,24 @@ export const searchMessagesSchema = {
     }),
 };
 
+const tooLong = `Messages must be ${MAX_MESSAGE_LENGTH} characters or fewer`;
+
+// Plain text has the usual length limit. End-to-end encrypted text is
+// ciphertext, so it's checked as base64 instead.
+const checkText = (data: { message: string; e2ee?: unknown }, ctx: z.RefinementCtx) => {
+    if (!data.e2ee && data.message.length > MAX_MESSAGE_LENGTH) {
+        ctx.addIssue({ code: "custom", path: ["message"], message: tooLong });
+    }
+    if (data.e2ee && !/^[A-Za-z0-9+/]+={0,2}$/.test(data.message)) {
+        ctx.addIssue({ code: "custom", path: ["message"], message: "Encrypted text must be base64" });
+    }
+};
+
 export const sendMessageSchema = {
     params: conversationParams,
     body: z
         .object({
-            message: z
-                .string()
-                .max(MAX_MESSAGE_LENGTH, `Messages must be ${MAX_MESSAGE_LENGTH} characters or fewer`)
-                .default(""),
+            message: z.string().max(MAX_CIPHERTEXT_LENGTH, tooLong).default(""),
             mediaUrl: httpsUrl("Media").nullish(),
             mediaType: z.enum(["text", "image", "video", "audio", "file"]).default("text"),
             replyTo: objectId("Reply").nullish(),
@@ -92,7 +154,10 @@ export const sendMessageSchema = {
             isForwarded: z.boolean().default(false),
             // Made by the browser, so a retried send is saved only once
             clientId: z.uuid("Client id must be a UUID").optional(),
+            e2ee: e2eeFields.optional(),
+            newKey: newChatKey.optional(),
         })
+        .superRefine(checkText)
         .refine((data) => data.message.trim() || data.mediaUrl, {
             path: ["message"],
             error: "Message can't be empty",
@@ -111,7 +176,13 @@ export const reactionSchema = {
 
 export const editMessageSchema = {
     params: messageParams,
-    body: z.object({ message: requiredText("Message", MAX_MESSAGE_LENGTH) }),
+    body: z
+        .object({
+            message: requiredText("Message", MAX_CIPHERTEXT_LENGTH),
+            e2ee: e2eeFields.optional(),
+            newKey: newChatKey.optional(),
+        })
+        .superRefine(checkText),
 };
 
 export const messageIdSchema = { params: messageParams };

@@ -1,13 +1,15 @@
 import { notifications } from "@mantine/notifications";
 import useConversation from "../zustand/useConversation";
 import { getOutbox, removeFromOutbox, type OutboxEntry } from "./messageCacheDB";
+import { openMessage, sendSealed } from "./e2ee/chats";
 import type { ApiError, Conversation, Message, PublicUser } from "../types";
 
 // Every message is saved to the outbox in IndexedDB before it is sent and
 // removed once the server has it. Sends that fail because the network or
 // the server is down stay there and go out again later, in order. The
 // server ignores a repeat of a client id it already saved, so a retry
-// never makes a duplicate.
+// never makes a duplicate. The text is encrypted just before each try, so
+// a retry always uses the chat's newest key.
 
 interface SendResponse extends ApiError {
     newMessage?: Message;
@@ -44,13 +46,14 @@ const toConversation = (
 
 // Swaps the optimistic copy for the saved message, and moves a new chat
 // from its stand-in (keyed by the other user's id) to the real one
-const applySent = (
+const applySent = async (
     entry: OutboxEntry,
     data: SendResponse & { newMessage: Message },
     authUserId: string,
 ) => {
+    const { newConversation } = data;
+    const newMessage = await openMessage(data.newMessage);
     const state = useConversation.getState();
-    const { newMessage, newConversation } = data;
     const openId = state.selectedConversation?._id;
 
     if (newConversation) {
@@ -77,17 +80,20 @@ const applySent = (
 const deliver = async (entry: OutboxEntry, authUserId: string): Promise<Outcome> => {
     let res: Response;
     try {
-        res = await fetch(`/api/messages/send/${entry.targetId}`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(entry.body),
-        });
+        res = await sendSealed(entry.targetId, String(entry.body.message ?? ""), (fields) =>
+            fetch(`/api/messages/send/${entry.targetId}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...entry.body, ...fields }),
+            }),
+        );
     } catch {
-        return "retry"; // offline
+        return "retry"; // offline, or the chat's keys couldn't be loaded
     }
 
-    // Server down, still waking up, or rate limited: try again later
-    if (res.status >= 500 || res.status === 429) return "retry";
+    // Server down, still waking up, rate limited, or the chat's keys
+    // changed again: try again later
+    if (res.status >= 500 || res.status === 429 || res.status === 409) return "retry";
 
     const data = (await res.json().catch(() => ({}))) as SendResponse;
     await removeFromOutbox(entry.clientId);
@@ -98,7 +104,7 @@ const deliver = async (entry: OutboxEntry, authUserId: string): Promise<Outcome>
         return "rejected";
     }
 
-    applySent(entry, { ...data, newMessage: data.newMessage }, authUserId);
+    await applySent(entry, { ...data, newMessage: data.newMessage }, authUserId);
     return "sent";
 };
 

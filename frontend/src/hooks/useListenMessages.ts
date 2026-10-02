@@ -3,6 +3,7 @@ import { useSocketContext } from "../context/SocketContext";
 import useConversation from "../zustand/useConversation";
 import notificationSound from "../assets/sounds/notification.mp3";
 import useMarkMessagesAsRead from "./useMarkMessagesAsRead";
+import { openMessage } from "../utils/e2ee/chats";
 import type { Message, ReadReceipt, TypingEvent } from "../types";
 
 const useListenMessages = () => {
@@ -86,11 +87,20 @@ const useListenMessages = () => {
             }
         };
 
+        // End-to-end text arrives as ciphertext and is decrypted first
+        const decrypted = (handler: (message: Message) => void) => (message: Message) => {
+            openMessage(message)
+                .then(handler)
+                .catch((error) => console.error("Error decrypting message:", error));
+        };
+        const onNewMessage = decrypted(handleNewMessage);
+        const onMessageChange = decrypted(handleMessageReaction);
+
         if (socket) {
-            socket.on("newMessage", handleNewMessage);
-            socket.on("messageReaction", handleMessageReaction);
-            socket.on("messageEdited", handleMessageReaction);
-            socket.on("messageDeleted", handleMessageReaction);
+            socket.on("newMessage", onNewMessage);
+            socket.on("messageReaction", onMessageChange);
+            socket.on("messageEdited", onMessageChange);
+            socket.on("messageDeleted", onMessageChange);
             socket.on("messagesRead", handleMessagesRead);
             socket.on("typing", handleTyping);
             socket.on("stopTyping", handleStopTyping);
@@ -98,10 +108,10 @@ const useListenMessages = () => {
 
         return () => {
             if (socket) {
-                socket.off("newMessage", handleNewMessage);
-                socket.off("messageReaction", handleMessageReaction);
-                socket.off("messageEdited", handleMessageReaction);
-                socket.off("messageDeleted", handleMessageReaction);
+                socket.off("newMessage", onNewMessage);
+                socket.off("messageReaction", onMessageChange);
+                socket.off("messageEdited", onMessageChange);
+                socket.off("messageDeleted", onMessageChange);
                 socket.off("messagesRead", handleMessagesRead);
                 socket.off("typing", handleTyping);
                 socket.off("stopTyping", handleStopTyping);

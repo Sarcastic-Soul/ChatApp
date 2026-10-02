@@ -61,6 +61,17 @@ const messageSchema = new mongoose.Schema(
             type: Number,
             default: undefined,
         },
+        // Set when the browser encrypted the text end to end. `message` then
+        // holds AES-GCM ciphertext the server can't read, made with the
+        // chat key of this epoch.
+        e2ee: {
+            type: {
+                epoch: { type: Number, required: true },
+                iv: { type: String, required: true },
+                _id: false,
+            },
+            default: undefined,
+        },
         // Blind index for search (utils/searchIndex.ts). Never sent to clients.
         searchTokens: {
             type: [String],
@@ -112,7 +123,7 @@ export type MessageFields = InferSchemaType<typeof messageSchema>;
 export type MessageDocument = HydratedDocument<MessageFields>;
 
 // The replied-to message, as populate() returns it for a reply
-export type QuotedMessage = Pick<MessageFields, "message" | "mediaType" | "mediaUrl" | "senderId"> & {
+export type QuotedMessage = Pick<MessageFields, "message" | "mediaType" | "mediaUrl" | "senderId" | "e2ee"> & {
     _id: Types.ObjectId;
 };
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { notifications } from "@mantine/notifications";
 import useConversation from "../zustand/useConversation";
 import { errorMessage } from "../utils/errorMessage";
+import { openMessage, sendSealed } from "../utils/e2ee/chats";
 import type { ApiError, Message } from "../types";
 
 const useForwardMessage = () => {
@@ -12,22 +13,21 @@ const useForwardMessage = () => {
         setLoading(true);
         try {
             const body = {
-                message: originalMessage.message,
                 mediaUrl: originalMessage.mediaUrl,
                 mediaType: originalMessage.mediaType,
                 isForwarded: true
             };
 
-            const res = await fetch(
-                `/api/messages/send/${targetConversationId}`,
-                {
+            // Decrypted here, so it's encrypted again for the other chat
+            const res = await sendSealed(targetConversationId, originalMessage.message, (fields) =>
+                fetch(`/api/messages/send/${targetConversationId}`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify(body),
-                    credentials: "include"
-                }
+                    body: JSON.stringify({ ...body, ...fields }),
+                    credentials: "include",
+                }),
             );
 
             const data = (await res.json()) as { newMessage: Message } & ApiError;
@@ -37,7 +37,7 @@ const useForwardMessage = () => {
             notifications.show({ message: "Message forwarded", color: "green" });
             
             if (selectedConversation && (selectedConversation._id === targetConversationId || selectedConversation.participantId === targetConversationId)) {
-                addMessage(data.newMessage);
+                addMessage(await openMessage(data.newMessage));
             }
             return true;
         } catch (error) {

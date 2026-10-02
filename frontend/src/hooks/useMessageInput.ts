@@ -7,7 +7,20 @@ import { useSocketContext } from "../context/SocketContext";
 import { errorMessage } from "../utils/errorMessage";
 import { senderIdOf, senderProfileOf } from "../utils/sender";
 import { uploadToCloudinary } from "../utils/upload";
+import { isEndToEnd } from "../utils/e2ee/chats";
 import type { ApiError } from "../types";
+
+// Magic reply sends recent messages to the server and Groq as plain text.
+// In an end-to-end chat that needs a yes from the user first, once.
+const CONSENT_KEY = "magic-reply-e2ee-ok";
+
+const hasConsent = () => {
+    try {
+        return localStorage.getItem(CONSENT_KEY) === "1";
+    } catch {
+        return false;
+    }
+};
 
 const useMessageInput = () => {
     const [message, setMessage] = useState("");
@@ -28,6 +41,7 @@ const useMessageInput = () => {
 
     const [isGenerating, setIsGenerating] = useState(false);
     const [selectedTone, setSelectedTone] = useState("Auto");
+    const [askingConsent, setAskingConsent] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
@@ -41,13 +55,36 @@ const useMessageInput = () => {
     }, [replyingToMessage]);
 
     const handleMagicReply = async () => {
+        if (isGenerating || !selectedConversation) return;
+        if (!hasConsent() && (await isEndToEnd(selectedConversation._id).catch(() => true))) {
+            setAskingConsent(true);
+            return;
+        }
+        await draftReply();
+    };
+
+    const answerConsent = (ok: boolean) => {
+        setAskingConsent(false);
+        if (!ok) return;
+        try {
+            localStorage.setItem(CONSENT_KEY, "1");
+        } catch {
+            // Asked again next time
+        }
+        void draftReply();
+    };
+
+    const draftReply = async () => {
         if (isGenerating) return;
         setIsGenerating(true);
         const originalMessage = message;
         setMessage("Drafting a reply…");
 
         try {
-            const lastMessages = messages.slice(-5).map((m) => {
+            const lastMessages = messages
+                .filter((m) => m.message && !m.undecryptable && !m.isDeleted)
+                .slice(-5)
+                .map((m) => {
                 const senderId = senderIdOf(m.senderId);
                 const isMe = senderId === authUser?._id;
 
@@ -265,6 +302,8 @@ const useMessageInput = () => {
         isRecording,
         inputRef,
         handleMagicReply,
+        askingConsent,
+        answerConsent,
         handleFileChange,
         startRecording,
         stopRecording,

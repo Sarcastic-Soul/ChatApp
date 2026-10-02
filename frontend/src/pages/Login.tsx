@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { Button, Stack, TextInput, PasswordInput } from "@mantine/core";
 import useLogin from "../hooks/useLogin";
 import AuthLayout from "../components/AuthLayout";
+import { DEMO_ACCOUNT } from "../utils/demo";
 
 const Login = () => {
     const [username, setUsername] = useState("");
@@ -15,9 +16,9 @@ const Login = () => {
     };
 
     const handleDemoLogin = async () => {
-        setUsername("alice");
-        setPassword("password123");
-        await login("alice", "password123");
+        setUsername(DEMO_ACCOUNT.username);
+        setPassword(DEMO_ACCOUNT.password);
+        await login(DEMO_ACCOUNT.username, DEMO_ACCOUNT.password);
     };
 
     return (

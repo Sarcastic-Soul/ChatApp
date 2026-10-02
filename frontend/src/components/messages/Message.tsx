@@ -40,6 +40,9 @@ import { errorMessage } from "../../utils/errorMessage";
 import { senderIdOf, senderProfileOf } from "../../utils/sender";
 import type { ApiError, AuthUser, Conversation, Message as MessageData, QuotedMessage, Reaction } from "../../types";
 
+// Text sealed with a key this browser doesn't have, e.g. from before a key reset
+const UNDECRYPTABLE = "Can't decrypt this message on this device";
+
 const availableReactions = ["👍", "❤️", "😂", "😮", "😢", "😡"];
 
 // Name to show for the sender of a quoted message
@@ -103,7 +106,7 @@ const Message = ({ message }: { message: MessageData }) => {
             setIsEditing(false);
             return;
         }
-        const success = await editMessage(message._id, editValue);
+        const success = await editMessage(message, editValue);
         if (success) setIsEditing(false);
     };
 
@@ -177,7 +180,7 @@ const Message = ({ message }: { message: MessageData }) => {
         );
     }
 
-    const canEdit = fromMe && !message.isDeleted && !isEditing;
+    const canEdit = fromMe && !message.isDeleted && !message.undecryptable && !isEditing;
 
     const tools = (
         <Group gap={2} wrap="nowrap" className="message-tools">
@@ -233,12 +236,14 @@ const Message = ({ message }: { message: MessageData }) => {
                                 </ActionIcon>
                             </Menu.Target>
                             <Menu.Dropdown>
-                                <Menu.Item
-                                    leftSection={<ArrowBendUpRightIcon size={16} />}
-                                    onClick={() => setForwardingMessage(message)}
-                                >
-                                    Forward
-                                </Menu.Item>
+                                {!message.undecryptable && (
+                                    <Menu.Item
+                                        leftSection={<ArrowBendUpRightIcon size={16} />}
+                                        onClick={() => setForwardingMessage(message)}
+                                    >
+                                        Forward
+                                    </Menu.Item>
+                                )}
                                 {canEdit && (
                                     <>
                                         <Menu.Item
@@ -319,8 +324,10 @@ const Message = ({ message }: { message: MessageData }) => {
                                     {quotedSenderName(message.replyTo, authUser, selectedConversation)}
                                 </Text>
                                 <Text size="xs" lineClamp={1} style={{ opacity: 0.85 }}>
-                                    {message.replyTo.message ||
-                                        (message.replyTo.mediaUrl ? `[${message.replyTo.mediaType}]` : "...")}
+                                    {message.replyTo.undecryptable
+                                        ? UNDECRYPTABLE
+                                        : message.replyTo.message ||
+                                          (message.replyTo.mediaUrl ? `[${message.replyTo.mediaType}]` : "...")}
                                 </Text>
                             </div>
                         )}
@@ -389,6 +396,8 @@ const Message = ({ message }: { message: MessageData }) => {
                                     <XIcon size={14} weight="bold" />
                                 </ActionIcon>
                             </Group>
+                        ) : message.undecryptable ? (
+                            <span style={{ fontStyle: "italic", opacity: 0.7 }}>{UNDECRYPTABLE}</span>
                         ) : (
                             message.message && (
                                 <span

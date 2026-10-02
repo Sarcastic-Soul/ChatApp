@@ -11,6 +11,7 @@ import groupRoutes from "./routes/group.routes.ts";
 import cloudinaryRoutes from "./routes/cloudinary.routes.ts";
 import callRoutes from "./routes/call.routes.ts";
 import pushRoutes from "./routes/push.routes.ts";
+import keyRoutes from "./routes/key.routes.ts";
 
 import { app, io, server } from "./socket/socket.ts";
 import { allowedOrigins } from "./config/allowedOrigins.ts";
@@ -39,6 +40,7 @@ app.use("/api/groups", groupRoutes);
 app.use("/api/cloudinary", cloudinaryRoutes);
 app.use("/api/calls", callRoutes);
 app.use("/api/push", pushRoutes);
+app.use("/api/keys", keyRoutes);
 
 // Health check, also pinged to keep Render awake
 app.get("/healthz", (req, res) => {

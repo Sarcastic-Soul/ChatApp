@@ -24,6 +24,8 @@ import {
     Tooltip,
     Center,
     Loader,
+    Modal,
+    Button,
 } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import type { Theme } from "emoji-picker-react";
@@ -65,6 +67,8 @@ const MessageInput = () => {
         isRecording,
         inputRef,
         handleMagicReply,
+        askingConsent,
+        answerConsent,
         handleFileChange,
         startRecording,
         stopRecording,
@@ -89,6 +93,18 @@ const MessageInput = () => {
 
     return (
         <Box px="md" pt={10} pb="md" style={{ borderTop: "1px solid var(--line)" }}>
+            <Modal opened={askingConsent} onClose={() => answerConsent(false)} title="Use magic reply here?" centered>
+                <Text size="sm" mb="md">
+                    This chat is end-to-end encrypted. To draft a reply, your last few messages are sent to our
+                    server and to Groq's AI as plain text. Our server doesn't keep them.
+                </Text>
+                <Group justify="flex-end" gap="sm">
+                    <Button variant="default" onClick={() => answerConsent(false)}>
+                        Cancel
+                    </Button>
+                    <Button onClick={() => answerConsent(true)}>Send and draft</Button>
+                </Group>
+            </Modal>
             {replyingToMessage && (
                 <Group
                     mb="sm"

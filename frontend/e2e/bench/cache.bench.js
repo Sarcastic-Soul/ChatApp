@@ -98,6 +98,14 @@ test("IndexedDB cache: time to show a chat", async ({ browser }) => {
     // The app keeps the logged-in user in localStorage next to the cookie
     await page.goto("/login");
     await page.evaluate((user) => localStorage.setItem("chat-user", JSON.stringify(user)), alice);
+    // Alice turns on encryption once; her key stays in its own IndexedDB
+    // database, which the cold runs leave alone. Bob never does, so the
+    // chat stays plain text and the numbers compare with older runs.
+    await page.goto("/");
+    await page.getByRole("textbox", { name: "Passphrase", exact: true }).fill("benchmark passphrase");
+    await page.getByRole("textbox", { name: "Confirm passphrase" }).fill("benchmark passphrase");
+    await page.getByRole("button", { name: "Turn on encryption" }).click();
+    await page.getByRole("navigation", { name: "Chats" }).waitFor();
     const results = {};
 
     for (const [network, conditions] of Object.entries(NETWORKS)) {

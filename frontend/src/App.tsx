@@ -2,6 +2,7 @@ import React, { Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router";
 import { useAuthContext } from "./context/AuthContext";
 import { Box, Center, Loader } from "@mantine/core";
+import EncryptionGate from "./components/EncryptionGate";
 
 // Lazy loading pages for code splitting
 const Home = React.lazy(() => import("./pages/Home"));
@@ -15,9 +16,7 @@ const GroupInfo = React.lazy(() => import("./pages/GroupInfo"));
 function App() {
     const { authUser } = useAuthContext();
 
-    return (
-        <Box style={{ minHeight: "100dvh" }}>
-            <Suspense fallback={<Center h="100dvh"><Loader size="md" type="dots" color="gray" /></Center>}>
+    const routes = (
             <Routes>
                 <Route path="/" element={authUser ? <Home /> : <Landing />} />
                 <Route
@@ -51,6 +50,13 @@ function App() {
                     }
                 />
             </Routes>
+    );
+
+    return (
+        <Box style={{ minHeight: "100dvh" }}>
+            <Suspense fallback={<Center h="100dvh"><Loader size="md" type="dots" color="gray" /></Center>}>
+            {/* Logged-in pages wait until this browser has the user's key */}
+            {authUser ? <EncryptionGate key={authUser._id}>{routes}</EncryptionGate> : routes}
             </Suspense>
         </Box>
     );

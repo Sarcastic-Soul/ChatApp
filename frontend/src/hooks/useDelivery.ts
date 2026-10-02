@@ -3,6 +3,7 @@ import { useAuthContext } from "../context/AuthContext";
 import { useSocketContext } from "../context/SocketContext";
 import useConversation from "../zustand/useConversation";
 import { flushOutbox, stopOutboxRetries } from "../utils/outbox";
+import { openMessages } from "../utils/e2ee/chats";
 import type { ApiError, Message } from "../types";
 
 const CATCH_UP_PAGE = 100;
@@ -23,7 +24,7 @@ const catchUp = async () => {
     for (let page = 0; page < MAX_CATCH_UP_PAGES; page += 1) {
         const res = await fetch(`/api/messages/${chatId}?after=${lastSeq}&limit=${CATCH_UP_PAGE}`);
         if (!res.ok) return;
-        const missed = (await res.json()) as Message[] & ApiError;
+        const missed = await openMessages((await res.json()) as Message[] & ApiError);
 
         const state = useConversation.getState();
         if (state.selectedConversation?._id !== chatId) return;

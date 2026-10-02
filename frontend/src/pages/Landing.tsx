@@ -7,6 +7,7 @@ import * as m from "motion/react-m";
 import ThemeToggle from "../components/ThemeToggle";
 import ChatPreview from "../components/ChatPreview";
 import useLogin from "../hooks/useLogin";
+import { DEMO_ACCOUNT } from "../utils/demo";
 import "./Landing.css";
 
 const REPO_URL = "https://github.com/Sarcastic-Soul/ChatApp";
@@ -15,10 +16,10 @@ const features = [
     ["Live messages", "Socket.io delivery with typing indicators, read receipts and online status."],
     ["Voice and video calls", "Direct WebRTC calls between two browsers. The socket only carries the handshake."],
     ["Groups", "Make a group, add or remove people, hand out admin rights."],
-    ["Encrypted at rest", "Each message is encrypted with AES-256 before MongoDB stores it."],
+    ["End-to-end encrypted", "Messages are locked in the browser with keys only the people in the chat hold."],
     ["Magic reply", "An AI model on Groq drafts a reply from the recent chat, in the tone you pick."],
     ["Opens from cache", "Chats load from IndexedDB first, then refresh from the server."],
-    ["Profanity filter", "Offensive words are masked on the server before the message is saved."],
+    ["Profanity filter", "Offensive words are masked before the message is sent."],
 ];
 
 const statusText = {
@@ -90,11 +91,11 @@ const Landing = () => {
                         </m.h1>
                         <m.p className="hero-lede" {...rise(0.12)}>
                             A chat app with groups, voice notes and peer-to-peer video calls.
-                            Messages are encrypted with AES-256 before they reach the database.
+                            Messages are encrypted in your browser, so the server only stores text it can't read.
                         </m.p>
                         <m.div {...rise(0.2)}>
                             <Group gap="sm">
-                                <Button size="lg" loading={loading} onClick={() => login("alice", "password123")}>
+                                <Button size="lg" loading={loading} onClick={() => login(DEMO_ACCOUNT.username, DEMO_ACCOUNT.password)}>
                                     Try the demo account
                                 </Button>
                                 <Button component={Link} to="/signup" size="lg" variant="default">

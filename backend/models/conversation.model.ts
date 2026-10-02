@@ -32,6 +32,11 @@ const conversationSchema = new mongoose.Schema(
 		lastSeq: {
 			type: Number,
 		},
+		// Newest end-to-end chat key (models/chatKey.model.ts). Missing until
+		// the first end-to-end encrypted message.
+		keyEpoch: {
+			type: Number,
+		},
 		admins: [
 			{
 				type: mongoose.Schema.Types.ObjectId,

@@ -9,6 +9,7 @@ import {
     getOutbox,
 } from "../utils/messageCacheDB";
 import { errorMessage } from "../utils/errorMessage";
+import { openMessages } from "../utils/e2ee/chats";
 import type { ApiError, Message } from "../types";
 
 // Messages for this chat still waiting in the outbox, shown after the rest
@@ -65,7 +66,8 @@ const useGetMessages = () => {
             const data = (await res.json()) as Message[] & ApiError;
             if (data.error) throw new Error(data.error);
 
-            const chronologicalMessages = data.reverse();
+            // Decrypted before they're shown or cached
+            const chronologicalMessages = await openMessages(data.reverse());
 
             setMessages([...chronologicalMessages, ...(await unsentFor(conversationId))]);
             await setCachedMessages(conversationId, chronologicalMessages);
@@ -114,7 +116,7 @@ const useGetMessages = () => {
             if (data.error) throw new Error(data.error);
 
             if (conversationId && data.length > 0) {
-                const chronologicalOlderMessages = data.reverse();
+                const chronologicalOlderMessages = await openMessages(data.reverse());
                 const existingIds = new Set(messages.map((msg) => msg._id));
                 const newUniqueOlderMessages =
                     chronologicalOlderMessages.filter(

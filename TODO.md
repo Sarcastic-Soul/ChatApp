@@ -68,17 +68,18 @@ otherwise.
         docker-compose (the Render free tier allows one instance)
   - [x] Load test with k6, recording p50 and p95 delivery latency and error
         rate in the repo
-- [ ] **End-to-end encryption**
-  - [ ] Key pair per browser with the Web Crypto API; only public keys go to
-        the server
-  - [ ] ECDH shared key plus AES-GCM for one-on-one chats
-  - [ ] Random group key, encrypted for each member, rotated when someone
-        leaves
-  - [ ] Private keys in IndexedDB, plus a passphrase-protected backup for new
-        devices
-  - The server could no longer read messages, so magic reply and the
-    profanity filter would have to move to the browser or become opt-in per
-    chat. Search gets harder too
+- [x] **End-to-end encryption** for every new message, in one-on-one chats
+      and groups
+  - [x] One key pair per user with the Web Crypto API; only the public key
+        and a passphrase-protected backup go to the server
+  - [x] Random chat key per epoch, sealed for each member with ECDH and
+        HKDF, replaced when someone joins, leaves or resets their key
+  - [x] Private key in IndexedDB as a non-extractable `CryptoKey`
+  - [x] Profanity filter in the browser, consent before magic reply, search
+        on the device, "New message" push notifications
+- [ ] **Safety numbers:** show a code per chat that both people can compare,
+      so a swapped public key gets noticed
+- [ ] **Encrypt media** before it goes to Cloudinary
 
 ## Not planned
 

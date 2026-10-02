@@ -31,6 +31,11 @@ const Snippet = ({ text, query }: { text: string; query: string }) => {
     );
 };
 
+const senderName = (hit: SearchResult, conversation: Conversation) =>
+    hit.sender?.fullName ??
+    conversation.participants?.find((p) => p._id === hit.senderId)?.fullName ??
+    "Someone";
+
 const MessageSearchResults = () => {
     const { searchTerm, conversations, setSelectedConversation, setJumpToMessageId, clearUnreadMessage } =
         useConversation();
@@ -87,7 +92,7 @@ const MessageSearchResults = () => {
                                 </Text>
                             </Group>
                             <Text size="xs" c="dimmed" lineClamp={2}>
-                                {conversation.isGroupChat && `${hit.sender?.fullName}: `}
+                                {conversation.isGroupChat && `${senderName(hit, conversation)}: `}
                                 <Snippet text={hit.message} query={searchTerm} />
                             </Text>
                         </div>

@@ -6,6 +6,12 @@ import { flushOutbox, stopOutboxRetries } from "./outbox";
 import type { Conversation, Message } from "../types";
 
 vi.mock("@mantine/notifications", () => ({ notifications: { show: vi.fn() } }));
+// Chats here aren't end to end; chats.test.ts covers the sealing
+vi.mock("./e2ee/chats", () => ({
+    sendSealed: (_id: string, text: string, send: (fields: { message: string }) => Promise<Response>) =>
+        send({ message: text }),
+    openMessage: async (message: unknown) => message,
+}));
 
 const store = () => useConversation.getState();
 const initialState = useConversation.getState();

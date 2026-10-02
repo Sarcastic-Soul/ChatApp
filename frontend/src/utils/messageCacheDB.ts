@@ -164,6 +164,20 @@ export const getCachedMessage = async (conversationId: string, messageId: string
 /**
  * Outbox: messages saved here before sending, removed once the server has them.
  */
+// End-to-end encrypted messages can't be searched on the server, so they're
+// searched in this browser's cache. Every word of the query has to appear.
+export const searchCachedMessages = async (query: string, limit = 20) => {
+    const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length >= 2);
+    if (terms.length === 0) return [];
+    const db = await getDB();
+    const entries = await db.getAll("messages");
+    return entries
+        .flatMap((entry) => entry.messages)
+        .filter((m) => m.endToEnd && !m.isDeleted && terms.every((t) => m.message.toLowerCase().includes(t)))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, limit);
+};
+
 export const addToOutbox = async (entry: OutboxEntry) => {
     const db = await getDB();
     await db.put("outbox", entry);

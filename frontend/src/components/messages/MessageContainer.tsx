@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import useConversation from "../../zustand/useConversation";
 import MessageInput from "./MessageInput";
@@ -9,7 +9,9 @@ import {
     PhoneIcon,
     ArrowLeftIcon,
     MagnifyingGlassIcon,
+    LockSimpleIcon,
 } from "@phosphor-icons/react";
+import { isEndToEnd } from "../../utils/e2ee/chats";
 import { useAuthContext } from "../../context/AuthContext";
 import { useSocketContext } from "../../context/SocketContext";
 import { useCallContext } from "../../context/CallContext";
@@ -35,6 +37,20 @@ const MessageContainer = () => {
     const navigate = useNavigate();
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [endToEnd, setEndToEnd] = useState<{ id: string; on: boolean } | null>(null);
+
+    const chatId = selectedConversation?._id;
+    useEffect(() => {
+        if (!chatId) return;
+        let stale = false;
+        isEndToEnd(chatId)
+            .then((on) => !stale && setEndToEnd({ id: chatId, on }))
+            .catch(() => {});
+        return () => {
+            stale = true;
+        };
+    }, [chatId]);
+    const showLock = endToEnd !== null && endToEnd.id === chatId && endToEnd.on;
 
     const isOnline =
         selectedConversation &&
@@ -106,9 +122,21 @@ const MessageContainer = () => {
                             >
                                 <Avatar src={selectedConversation.profilePic} alt="" radius="xl" size={38} name={displayName} />
                                 <div style={{ minWidth: 0 }}>
-                                    <Text component="h1" fw={600} size="sm" m={0} truncate>
-                                        {displayName}
-                                    </Text>
+                                    <Group gap={4} wrap="nowrap">
+                                        <Text component="h1" fw={600} size="sm" m={0} truncate>
+                                            {displayName}
+                                        </Text>
+                                        {showLock && (
+                                            <Tooltip label="End-to-end encrypted">
+                                                <LockSimpleIcon
+                                                    size={13}
+                                                    weight="bold"
+                                                    aria-label="End-to-end encrypted"
+                                                    style={{ flexShrink: 0, color: "var(--muted)" }}
+                                                />
+                                            </Tooltip>
+                                        )}
+                                    </Group>
                                     {statusLine && (
                                         <Text
                                             size="xs"

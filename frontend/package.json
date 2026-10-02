@@ -26,6 +26,7 @@
     "@phosphor-icons/react": "^2.1.10",
     "emoji-picker-react": "^4.22.3",
     "idb": "^8.0.3",
+    "leo-profanity": "^1.9.0",
     "motion": "^13.4.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

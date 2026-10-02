@@ -64,8 +64,24 @@ export interface Reaction {
     reaction: string;
 }
 
+// Which chat key end-to-end ciphertext was made with. The browser removes
+// it once it has decrypted the text (see utils/e2ee/chats.ts).
+export interface E2eeFields {
+    epoch: number;
+    iv: string;
+}
+
+// Set in the browser on text it decrypted, or failed to
+interface Decrypted {
+    e2ee?: E2eeFields;
+    // The text was end-to-end encrypted and has been decrypted here
+    endToEnd?: boolean;
+    // This browser has no key for it
+    undecryptable?: boolean;
+}
+
 // The message a reply quotes
-export interface QuotedMessage {
+export interface QuotedMessage extends Decrypted {
     _id: string;
     message: string;
     mediaType: MediaType;
@@ -73,7 +89,7 @@ export interface QuotedMessage {
     senderId: string;
 }
 
-export interface Message {
+export interface Message extends Decrypted {
     _id: string;
     // The sender's profile on messages sent or changed live, only the id on
     // messages loaded from history
@@ -110,6 +126,8 @@ export interface SearchResult {
     message: string;
     createdAt: string;
     sender: GroupMember | null;
+    // Set on matches found in this browser's cache, where the sender may be a bare id
+    senderId?: string;
 }
 
 // Every error response looks like this
