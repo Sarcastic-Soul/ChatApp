@@ -9,7 +9,7 @@ import { createAdapter } from "@socket.io/redis-adapter";
 import { io as connect, type Socket } from "socket.io-client";
 import { server } from "../app.ts";
 import { setUpRedis } from "../config/redis.ts";
-import { isOnline } from "../socket/socket.ts";
+import { io, isOnline } from "../socket/socket.ts";
 import { redisPresence } from "../socket/presence.ts";
 import { createUser } from "./helpers.ts";
 
@@ -126,6 +126,12 @@ describe.skipIf(!REDIS_URL)("with Redis", () => {
 
         afterAll(async () => {
             sockets.forEach((socket) => socket.disconnect());
+            // This server's disconnect handlers broadcast the online list
+            // through Redis, so let them finish before Redis closes
+            for (let i = 0; i < 50 && io.of("/").sockets.size > 0; i++) {
+                await new Promise((resolve) => setTimeout(resolve, 20));
+            }
+            await new Promise((resolve) => setTimeout(resolve, 200));
             await otherPresence?.stop();
             await new Promise((resolve) => other.close(resolve));
             await Promise.all([otherRedis.quit(), otherSub.quit()]);
