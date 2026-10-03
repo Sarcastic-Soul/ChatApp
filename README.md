@@ -34,6 +34,19 @@
   <img alt="ChatApp group chat" src="./screenshots/chat_ss.png">
 </p>
 
+<table>
+  <tr>
+    <td width="40%"><img alt="A chat with a photo, a video and an audio clip" src="./screenshots/media.png"></td>
+    <td width="40%"><img alt="A group chat in dark mode" src="./screenshots/dark.png"></td>
+    <td width="20%"><img alt="A group chat on a phone" src="./screenshots/mobile.png"></td>
+  </tr>
+  <tr>
+    <td align="center">Photos, video and audio</td>
+    <td align="center">Dark mode</td>
+    <td align="center">On a phone</td>
+  </tr>
+</table>
+
 ## Try it
 
 Open the [live app](https://chatapp-e2e.vercel.app/) and press **Try the demo account**, or log in by hand:
@@ -402,6 +415,10 @@ Everything deploys from `main`.
 | Keep-alive | GitHub Actions | `keep-alive.yml` pings `/healthz` every 10 minutes |
 
 Settings, variables and caveats are in [docs/deployment.md](docs/deployment.md).
+
+## Security
+
+What is and isn't protected, and how to report a problem, is in [SECURITY.md](SECURITY.md).
 
 ## License
 

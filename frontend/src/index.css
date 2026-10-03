@@ -251,7 +251,10 @@ p {
     .message-row:focus-within .message-tools {
         pointer-events: auto;
     }
+}
 
+/* Narrow windows have no room beside the bubble either */
+@media (hover: none), (max-width: 480px) {
     .bubble-line .message-tools {
         top: auto;
         bottom: calc(100% + 4px);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button, Group, Loader } from "@mantine/core";
 import { Link } from "react-router";
-import { GithubLogoIcon } from "@phosphor-icons/react";
+import { BookOpenTextIcon, GithubLogoIcon } from "@phosphor-icons/react";
 import { useReducedMotion, type MotionProps } from "motion/react";
 import * as m from "motion/react-m";
 import ThemeToggle from "../components/ThemeToggle";
@@ -129,22 +129,20 @@ const Landing = () => {
                         ))}
                     </ol>
                 </section>
-
-                <section className="landing-stack">
-                    <p>
-                        Built with React 19, Mantine, Zustand and Vite on the front. Express, Socket.io and
-                        MongoDB on the back. Frontend on Vercel, backend on Render.
-                    </p>
-                </section>
             </main>
 
             <footer className="landing-footer">
                 <span className="wordmark small">
                     Chat<em>App</em>
                 </span>
-                <a className="nav-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">
-                    <GithubLogoIcon size={16} /> Source on GitHub
-                </a>
+                <nav className="footer-links" aria-label="More">
+                    <a className="nav-link" href="/docs/">
+                        <BookOpenTextIcon size={16} /> API reference
+                    </a>
+                    <a className="nav-link" href={REPO_URL} target="_blank" rel="noopener noreferrer">
+                        <GithubLogoIcon size={16} /> Source on GitHub
+                    </a>
+                </nav>
             </footer>
         </div>
     );
