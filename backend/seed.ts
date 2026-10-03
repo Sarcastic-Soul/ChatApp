@@ -225,7 +225,7 @@ const seedDatabase = async () => {
                     from: bob,
                     ago: DAY + 4 * HOUR,
                     text: "I recorded the tune I've been practicing. Be honest!",
-                    audio: clip("riff.mp3"),
+                    audio: clip("tune.mp3"),
                 },
                 {
                     from: alice,
