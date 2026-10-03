@@ -1,6 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, test } from "vitest";
 import Conversation from "../models/conversation.model.ts";
-import type { MessageFields } from "../models/message.model.ts";
 import Message from "../models/message.model.ts";
 import { createUser, missingId } from "./helpers.ts";
 
@@ -19,8 +18,7 @@ beforeAll(async () => {
 const createGroup = (user, body) => user.agent.post("/api/groups/create").send(body);
 
 const systemTexts = async (groupId) => {
-    const group = await Conversation.findById(groupId).populate<{ messages: MessageFields[] }>("messages");
-    return group.messages.filter((m) => m.isSystem).length;
+    return Message.countDocuments({ receiverId: groupId, isSystem: true });
 };
 
 describe("creating groups", () => {
@@ -164,8 +162,7 @@ describe("managing a group", () => {
         await owner.agent.put(url("/participants/add")).send({ userIdToAdd: outsider.user._id });
         await owner.agent.put(url("/admins/add")).send({ userIdToMakeAdmin: outsider.user._id });
 
-        const group = await Conversation.findById(groupId).populate<{ messages: MessageFields[] }>("messages");
-        const system = group.messages.filter((m) => m.isSystem);
+        const system = await Message.find({ receiverId: groupId, isSystem: true }).lean();
         expect(system).toHaveLength(4);
         // Stored encrypted like any other message
         expect(system.every((m) => /^[a-f\d]{32}:/.test(m.message))).toBe(true);

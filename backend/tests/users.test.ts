@@ -38,6 +38,27 @@ describe("user lists", () => {
         expect(chat).toMatchObject({ isGroupChat: false, fullName: "Dave Kim", username: dave.user.username });
     });
 
+    test("conversations carry the newest message and an unread count", async () => {
+        const [erin, finn] = await Promise.all([createUser(), createUser()]);
+        const first = await erin.agent.post(`/api/messages/send/${finn.user._id}`).send({ message: "one" });
+        const chatId = first.body.newConversation._id;
+        await erin.agent.post(`/api/messages/send/${chatId}`).send({ message: "two" });
+
+        const chatOf = async (person) =>
+            (await person.agent.get("/api/users/conversations")).body.find((c) => c._id === chatId);
+
+        expect(await chatOf(finn)).toMatchObject({ unreadCount: 2, lastMessage: { message: "two", seq: 2 } });
+        // The sender's own messages are never unread for them
+        expect((await chatOf(erin)).unreadCount).toBe(0);
+
+        const before = (await chatOf(finn)).updatedAt;
+        await finn.agent.post(`/api/messages/read/${chatId}`);
+        const after = await chatOf(finn);
+        expect(after.unreadCount).toBe(0);
+        // Reading doesn't move the chat up the list
+        expect(after.updatedAt).toBe(before);
+    });
+
     test("conversations need a login", async () => {
         const res = await api().get("/api/users/conversations");
         expect(res.status).toBe(401);

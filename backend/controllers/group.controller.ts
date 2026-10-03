@@ -17,7 +17,7 @@ import User from "../models/user.model.ts";
 import Message from "../models/message.model.ts";
 import { encryptText } from "../utils/encryption.ts";
 import { includesId } from "../utils/ids.ts";
-import { appendMessage } from "../utils/sequence.ts";
+import { nextSeq, recordMessage } from "../utils/sequence.ts";
 import { io, addUserToRoom, removeUserFromRoom } from "../socket/socket.ts";
 
 const emitSystemMessage = async (groupId: Types.ObjectId, senderId: Types.ObjectId, text: string) => {
@@ -28,8 +28,10 @@ const emitSystemMessage = async (groupId: Types.ObjectId, senderId: Types.Object
             message: encryptText(text),
             isSystem: true,
         });
-        msg.seq = await appendMessage(groupId, msg._id);
+        const seq = await nextSeq(groupId);
+        msg.seq = seq;
         await msg.save();
+        await recordMessage(groupId, { _id: msg._id, seq });
 
         const populatedMessage = await msg.populate([
             {

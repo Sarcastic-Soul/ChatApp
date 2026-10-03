@@ -28,8 +28,7 @@ describe("client message ids", () => {
         expect(retry.body.newMessage).toMatchObject({ message: "only once", clientId });
 
         expect(await Message.countDocuments({ clientId })).toBe(1);
-        const conversation = await Conversation.findById(chatId);
-        expect(conversation.messages.filter((id) => id.equals(first.body.newMessage._id))).toHaveLength(1);
+        expect(await Message.countDocuments({ receiverId: chatId })).toBe(2);
     });
 
     test("two copies of a send arriving at once are saved once", async () => {
@@ -43,10 +42,11 @@ describe("client message ids", () => {
         expect(ids.size).toBe(1);
         expect(await Message.countDocuments({ clientId })).toBe(1);
 
-        // The losing copy's id was taken back out of the chat
+        // The chat list preview points at the copy that was saved
         const conversation = await Conversation.findById(chatId);
-        const stored = await Message.countDocuments({ _id: { $in: conversation.messages } });
-        expect(stored).toBe(conversation.messages.length);
+        expect(conversation.lastMessage.toString()).toBe([...ids][0]);
+        // "first" and one copy of "racing"
+        expect(conversation.unread.get(bob.user._id)).toBe(2);
     });
 
     test("the same client id from two people makes two messages", async () => {
@@ -114,7 +114,6 @@ describe("sequence numbers", () => {
         const ids = Object.values(old.insertedIds);
         const { insertedId } = await Conversation.collection.insertOne({
             participants: [senderId, new Types.ObjectId(bob.user._id)],
-            messages: ids,
             isGroupChat: false,
         });
         await Message.updateMany({ _id: { $in: ids } }, { receiverId: insertedId });

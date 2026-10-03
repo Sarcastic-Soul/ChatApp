@@ -37,7 +37,7 @@ const senderName = (hit: SearchResult, conversation: Conversation) =>
     "Someone";
 
 const MessageSearchResults = () => {
-    const { searchTerm, conversations, setSelectedConversation, setJumpToMessageId, clearUnreadMessage } =
+    const { searchTerm, conversations, setSelectedConversation, setJumpToMessageId, clearUnread } =
         useConversation();
     const { active, results, loading, error } = useSearchMessages(searchTerm);
 
@@ -53,7 +53,7 @@ const MessageSearchResults = () => {
     const open = (hit: SearchResult, conversation: Conversation) => {
         setJumpToMessageId(hit._id);
         setSelectedConversation(conversation);
-        clearUnreadMessage(conversation._id);
+        clearUnread(conversation._id);
     };
 
     return (

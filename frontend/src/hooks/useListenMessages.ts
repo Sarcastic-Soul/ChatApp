@@ -14,8 +14,8 @@ const useListenMessages = () => {
         updateMessage,
         selectedConversation,
         markMessagesRead,
-        setUnreadMessage,
-        updateConversation,
+        noteMessage,
+        refreshPreview,
         addTypingUser,
         removeTypingUser,
         setTypingUsers,
@@ -25,17 +25,15 @@ const useListenMessages = () => {
         setTypingUsers([]);
 
         const handleNewMessage = (newMessage: Message) => {
-            updateConversation({
-                _id: newMessage.receiverId,
-                updatedAt: newMessage.createdAt || new Date().toISOString(),
-            });
+            const isOpen =
+                !!selectedConversation &&
+                (newMessage.senderId === selectedConversation._id ||
+                    newMessage.receiverId === selectedConversation._id);
+            // Group notices show as the preview but don't count as unread
+            noteMessage(newMessage, !isOpen && !newMessage.isSystem);
 
             // Only add message if it's for the currently selected conversation
-            if (
-                selectedConversation &&
-                (newMessage.senderId === selectedConversation._id ||
-                    newMessage.receiverId === selectedConversation._id)
-            ) {
+            if (isOpen) {
                 newMessage.shouldShake = true;
                 const sound = new Audio(notificationSound);
                 sound.play();
@@ -43,13 +41,13 @@ const useListenMessages = () => {
                 addMessage(newMessage);
                 markAsRead(selectedConversation._id);
             } else {
-                setUnreadMessage(newMessage.receiverId);
                 const sound = new Audio(notificationSound);
                 sound.play();
             }
         };
 
         const handleMessageReaction = (updatedMessage: Message) => {
+            refreshPreview(updatedMessage);
             // Only update message if it's for the currently selected conversation
             if (
                 selectedConversation &&
@@ -122,9 +120,9 @@ const useListenMessages = () => {
         addMessage,
         updateMessage,
         markMessagesRead,
-        setUnreadMessage,
+        noteMessage,
+        refreshPreview,
         selectedConversation,
-        updateConversation,
         addTypingUser,
         removeTypingUser,
         setTypingUsers,

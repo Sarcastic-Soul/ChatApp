@@ -71,10 +71,7 @@ const applySent = async (
     if (nowOpen === entry.targetId || nowOpen === newMessage.receiverId) {
         state.addMessage(newMessage);
     }
-    state.updateConversation({
-        _id: newMessage.receiverId,
-        updatedAt: newMessage.createdAt || new Date().toISOString(),
-    });
+    state.noteMessage(newMessage);
 };
 
 const deliver = async (entry: OutboxEntry, authUserId: string): Promise<Outcome> => {

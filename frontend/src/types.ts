@@ -43,6 +43,9 @@ export interface Conversation {
     groupIcon?: string;
     participants?: PublicUser[];
     admins?: string[];
+    // The newest message, shown under the name in the chat list
+    lastMessage?: Message | null;
+    unreadCount?: number;
 }
 
 // GET /api/groups/:groupId

@@ -3,16 +3,14 @@ import useConversation from "../../zustand/useConversation";
 import { UnstyledButton, Text, Indicator } from "@mantine/core";
 import Avatar from "../Avatar";
 import { extractListTime } from "../../utils/extractTime";
+import { useAuthContext } from "../../context/AuthContext";
+import { previewText, unreadLabel } from "../../utils/preview";
 import type { Conversation as ConversationData } from "../../types";
 
 const Conversation = ({ conversation }: { conversation: ConversationData }) => {
-    const {
-        selectedConversation,
-        setSelectedConversation,
-        unreadMessages,
-        clearUnreadMessage,
-    } = useConversation();
+    const { selectedConversation, setSelectedConversation, clearUnread } = useConversation();
     const { onlineUsers } = useSocketContext();
+    const { authUser } = useAuthContext();
 
     const isSelected = selectedConversation?._id === conversation._id;
     const isOnline =
@@ -24,17 +22,21 @@ const Conversation = ({ conversation }: { conversation: ConversationData }) => {
         ? conversation.groupName
         : conversation.fullName;
 
-    const hasUnread =
-        unreadMessages[conversation._id] ||
-        (conversation.participantId &&
-            unreadMessages[conversation.participantId]);
+    const unreadCount = isSelected ? 0 : (conversation.unreadCount ?? 0);
+    const hasUnread = unreadCount > 0;
+
+    // The newest message; a chat with none yet says who or what it is
+    const preview =
+        previewText(conversation, authUser?._id) ||
+        (conversation.lastMessage
+            ? "\u00a0"
+            : conversation.isGroupChat
+              ? `${conversation.participants?.length || 0} members`
+              : `@${conversation.username || "user"}`);
 
     const handleSelect = () => {
         setSelectedConversation(conversation);
-        clearUnreadMessage(conversation._id);
-        if (conversation.participantId) {
-            clearUnreadMessage(conversation.participantId);
-        }
+        clearUnread(conversation._id);
     };
 
     return (
@@ -61,12 +63,8 @@ const Conversation = ({ conversation }: { conversation: ConversationData }) => {
                 <Text size="sm" fw={hasUnread ? 600 : 500} truncate>
                     {displayName}
                 </Text>
-                <Text size="xs" c="dimmed" truncate>
-                    {conversation.isGroupChat
-                        ? `${conversation.participants?.length || 0} members`
-                        : isOnline
-                          ? "Online"
-                          : `@${conversation.username || "user"}`}
+                <Text size="xs" c={hasUnread ? "var(--ink)" : "dimmed"} truncate>
+                    {preview}
                 </Text>
             </div>
 
@@ -75,17 +73,11 @@ const Conversation = ({ conversation }: { conversation: ConversationData }) => {
                     {extractListTime(conversation.updatedAt)}
                 </Text>
                 {hasUnread ? (
-                    <span
-                        aria-label="Unread messages"
-                        style={{
-                            width: 9,
-                            height: 9,
-                            borderRadius: "50%",
-                            backgroundColor: "var(--mantine-primary-color-filled)",
-                        }}
-                    />
+                    <span className="unread-count tabular" aria-label={`${unreadCount} unread`}>
+                        {unreadLabel(unreadCount)}
+                    </span>
                 ) : (
-                    <span style={{ height: 9 }} />
+                    <span style={{ height: 18 }} />
                 )}
             </div>
         </UnstyledButton>

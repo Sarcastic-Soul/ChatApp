@@ -62,9 +62,12 @@ interface ConversationState {
     jumpToMessageId: string | null;
     setJumpToMessageId: (id: string | null) => void;
 
-    unreadMessages: Record<string, boolean>;
-    setUnreadMessage: (conversationId: string) => void;
-    clearUnreadMessage: (conversationId: string) => void;
+    // A message was sent or arrived: its chat shows it as the preview
+    // and, when unread, counts it
+    noteMessage: (message: Message, unread?: boolean) => void;
+    // A message changed (edit, delete): the preview follows if it shows it
+    refreshPreview: (message: Message) => void;
+    clearUnread: (conversationId: string) => void;
 
     addMessage: (message: Message) => void;
     updateMessage: (updatedMessage: Message) => void;
@@ -126,17 +129,31 @@ const useConversation = create<ConversationState>()((set, get) => ({
     jumpToMessageId: null,
     setJumpToMessageId: (id) => set({ jumpToMessageId: id }),
 
-    unreadMessages: {},
-    setUnreadMessage: (conversationId) =>
+    noteMessage: (message, unread = false) =>
         set((state) => ({
-            unreadMessages: { ...state.unreadMessages, [conversationId]: true },
+            conversations: state.conversations.map((conv) => {
+                if (conv._id !== message.receiverId) return conv;
+                const isNewer = (message.seq ?? Infinity) >= (conv.lastMessage?.seq ?? 0);
+                return {
+                    ...conv,
+                    updatedAt: message.createdAt || new Date().toISOString(),
+                    lastMessage: isNewer ? message : conv.lastMessage,
+                    unreadCount: (conv.unreadCount ?? 0) + (unread ? 1 : 0),
+                };
+            }),
         })),
-    clearUnreadMessage: (conversationId) =>
-        set((state) => {
-            const newUnread = { ...state.unreadMessages };
-            delete newUnread[conversationId];
-            return { unreadMessages: newUnread };
-        }),
+    refreshPreview: (message) =>
+        set((state) => ({
+            conversations: state.conversations.map((conv) =>
+                conv.lastMessage?._id === message._id ? { ...conv, lastMessage: message } : conv,
+            ),
+        })),
+    clearUnread: (conversationId) =>
+        set((state) => ({
+            conversations: state.conversations.map((conv) =>
+                conv._id === conversationId && conv.unreadCount ? { ...conv, unreadCount: 0 } : conv,
+            ),
+        })),
 
     addMessage: (message) => {
         const { selectedConversation } = get();
@@ -154,6 +171,7 @@ const useConversation = create<ConversationState>()((set, get) => ({
                 msg._id === updatedMessage._id ? updatedMessage : msg,
             ),
         }));
+        get().refreshPreview(updatedMessage);
         if (selectedConversation?._id) {
             updateMessageInCache(selectedConversation._id, updatedMessage);
         }

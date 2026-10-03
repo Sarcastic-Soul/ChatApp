@@ -24,7 +24,7 @@ import { encryptText, decryptText } from "../utils/encryption.ts";
 import { cleanProfanity } from "../utils/profanityFilter.ts";
 import { messageNotification, sendPushToUsers } from "../utils/push.ts";
 import { matchesQuery, queryTokensFor, searchTokensFor } from "../utils/searchIndex.ts";
-import { appendMessage, ensureSequenced } from "../utils/sequence.ts";
+import { ensureSequenced, nextSeq, recordMessage } from "../utils/sequence.ts";
 import { checkChatKey, type KeyRefusal } from "../utils/chatKeys.ts";
 
 // Messages go out with the sender's profile and the message they reply to
@@ -123,7 +123,7 @@ export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema
         }
 
         // Replies show the quoted text, so it must come from this chat
-        if (replyTo && !conversation.messages.some((id) => id.equals(replyTo))) {
+        if (replyTo && !(await Message.exists({ _id: replyTo, receiverId: conversation._id }))) {
             return res
                 .status(400)
                 .json({ error: "You can only reply to messages in this chat." });
@@ -150,28 +150,27 @@ export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema
             isForwarded,
         });
 
-        newMessage.seq = await appendMessage(conversation._id, newMessage._id);
+        const seq = await nextSeq(conversation._id);
+        newMessage.seq = seq;
         try {
             await newMessage.save();
         } catch (error) {
             // Two copies of the same send arrived at once and the other one
-            // won: drop this one from the chat and answer with the winner
+            // won: answer with the winner
             if (!clientId || !isDuplicateKeyError(error)) throw error;
-            await Conversation.updateOne(
-                { _id: conversation._id },
-                { $pull: { messages: newMessage._id } },
-            );
             const winner = await Message.findOne({ senderId, clientId });
             if (!winner) throw error;
             return respond(200, await readableMessage(winner));
         }
+
+        const others = conversation.participants.filter((p) => !p.equals(senderId));
+        await recordMessage(conversation._id, { _id: newMessage._id, seq }, others);
 
         const populatedMessage = await readableMessage(newMessage);
 
         emitToChat(conversation, "newMessage", populatedMessage, senderId);
 
         // People with no open tab get a push notification instead
-        const others = conversation.participants.filter((p) => !p.equals(senderId));
         const online = await Promise.all(others.map((p) => isOnline(p)));
         const offlineIds = others.filter((_p, index) => !online[index]);
         if (offlineIds.length) {
@@ -208,7 +207,7 @@ export const getMessages = async (req: ValidatedRequest<typeof getMessagesSchema
 
         await ensureSequenced(conversation._id);
 
-        const messageQuery: QueryFilter<MessageFields> = { _id: { $in: conversation.messages } };
+        const messageQuery: QueryFilter<MessageFields> = { receiverId: conversation._id };
 
         if (after !== undefined) {
             // Catching up after a reconnect: only what came after `after`
@@ -276,6 +275,13 @@ export const markMessagesAsRead = async (req: ValidatedRequest<typeof conversati
             },
         );
 
+        // Not a new message, so the chat keeps its place in the list
+        await Conversation.updateOne(
+            { _id: conversation._id },
+            { $set: { [`unread.${userId.toString()}`]: 0 } },
+            { timestamps: false },
+        );
+
         emitToChat(conversation, "messagesRead", { conversationId, userId, upToSeq }, userId);
 
         res.status(200).json({ message: "Messages marked as read" });
@@ -291,10 +297,8 @@ export const addReaction = async (req: ValidatedRequest<typeof reactionSchema>, 
         const { reaction } = req.body;
         const userId = req.user._id;
 
-        const [message, conversation] = await Promise.all([
-            Message.findById(messageId),
-            Conversation.findOne({ messages: messageId }),
-        ]);
+        const message = await Message.findById(messageId);
+        const conversation = message && (await Conversation.findById(message.receiverId));
 
         // Treat messages in chats the user is not part of as missing
         if (!message || !conversation?.participants.includes(userId)) {
@@ -425,9 +429,7 @@ export const editMessage = async (req: ValidatedRequest<typeof editMessageSchema
             return res.status(403).json({ error: "Unauthorized" });
         }
 
-        const conversation = await Conversation.findOne({
-            messages: messageId,
-        });
+        const conversation = await Conversation.findById(message.receiverId);
 
         // The new text follows the chat's current rules, so an edit in a
         // chat that went end to end gets encrypted too
@@ -504,9 +506,7 @@ export const deleteMessage = async (req: ValidatedRequest<typeof messageIdSchema
             populatedObj.replyTo.message = outgoingText(populatedObj.replyTo);
         }
 
-        const conversation = await Conversation.findOne({
-            messages: messageId,
-        });
+        const conversation = await Conversation.findById(message.receiverId);
 
         if (conversation) {
             emitToChat(conversation, "messageDeleted", populatedObj, userId);

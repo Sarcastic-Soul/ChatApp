@@ -108,6 +108,20 @@ p {
     outline-offset: 2px;
 }
 
+/* Unread messages in a chat, in the chat list */
+.unread-count {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background-color: var(--mantine-primary-color-filled);
+    color: var(--mantine-primary-color-contrast);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 18px;
+    text-align: center;
+}
+
 /* Matching words in message search results */
 .search-hit {
     background: var(--mantine-primary-color-light);

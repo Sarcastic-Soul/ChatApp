@@ -8,13 +8,21 @@ const conversationSchema = new mongoose.Schema(
 				ref: "User",
 			},
 		],
-		messages: [
-			{
-				type: mongoose.Schema.Types.ObjectId,
-				ref: "Message",
-				default: [],
-			},
-		],
+		// The newest message, for the chat list preview. Messages point at
+		// their chat (receiverId); the chat keeps no list of them.
+		lastMessage: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: "Message",
+		},
+		lastMessageSeq: {
+			type: Number,
+		},
+		// Unread message count per member, keyed by user id
+		unread: {
+			type: Map,
+			of: Number,
+			default: {},
+		},
 		isGroupChat: {
 			type: Boolean,
 			default: false,

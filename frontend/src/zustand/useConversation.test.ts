@@ -164,10 +164,34 @@ describe("conversations", () => {
 });
 
 describe("unread", () => {
-    test("set and clear per conversation", () => {
-        store().setUnreadMessage("c1");
-        store().setUnreadMessage("c2");
-        store().clearUnreadMessage("c1");
-        expect(store().unreadMessages).toEqual({ c2: true });
+    test("a new message becomes the preview and counts when unread", () => {
+        store().setConversations([chat({ _id: "c1" }), chat({ _id: "c2", unreadCount: 2 })]);
+        store().noteMessage(msg({ _id: "m1", receiverId: "c1", seq: 1, createdAt: "2026-01-01T00:00:00.000Z" }), true);
+        store().noteMessage(msg({ _id: "m2", receiverId: "c1", seq: 2 }), true);
+        store().noteMessage(msg({ _id: "m3", receiverId: "c2", seq: 9 }));
+
+        const [c1, c2] = store().conversations;
+        expect(c1.unreadCount).toBe(2);
+        expect(c1.lastMessage?._id).toBe("m2");
+        expect(c2.unreadCount).toBe(2);
+        expect(c2.lastMessage?._id).toBe("m3");
+
+        store().clearUnread("c1");
+        expect(store().conversations.map((c) => c.unreadCount)).toEqual([0, 2]);
+    });
+
+    test("an older message arriving late doesn't replace the preview", () => {
+        store().setConversations([chat({ _id: "c1", lastMessage: msg({ _id: "m5", seq: 5 }) })]);
+        store().noteMessage(msg({ _id: "m4", receiverId: "c1", seq: 4 }), true);
+        expect(store().conversations[0].lastMessage?._id).toBe("m5");
+        expect(store().conversations[0].unreadCount).toBe(1);
+    });
+
+    test("an edit updates the preview only when it shows that message", () => {
+        store().setConversations([chat({ _id: "c1", lastMessage: msg({ _id: "m1", message: "old" }) })]);
+        store().refreshPreview(msg({ _id: "m0", message: "other" }));
+        expect(store().conversations[0].lastMessage?.message).toBe("old");
+        store().refreshPreview(msg({ _id: "m1", message: "new" }));
+        expect(store().conversations[0].lastMessage?.message).toBe("new");
     });
 });

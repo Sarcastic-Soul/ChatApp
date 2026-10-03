@@ -8,6 +8,8 @@ import type {
 import { errorMessage } from "../utils/errorMessage.ts";
 import User, { type PublicUser } from "../models/user.model.ts";
 import Conversation from "../models/conversation.model.ts";
+import type { MessageDocument } from "../models/message.model.ts";
+import { decryptText } from "../utils/encryption.ts";
 
 export const getUsersForNewChat = async (req: Request, res: Response) => {
     try {
@@ -46,7 +48,18 @@ export const getConversations = async (req: Request, res: Response) => {
             .populate<{ participants: PublicUser[] }>({
                 path: "participants",
                 select: "fullName profilePic username isPublic",
-            });
+            })
+            .populate<{ lastMessage: MessageDocument | null }>("lastMessage");
+
+        // The newest message, for the preview line. End-to-end text goes
+        // out as ciphertext, like everywhere else.
+        const preview = (conv: (typeof conversations)[number]) => {
+            if (!conv.lastMessage) return null;
+            const last = conv.lastMessage.toObject();
+            return { ...last, message: last.e2ee || !last.message ? last.message : decryptText(last.message) };
+        };
+        const unreadCount = (conv: (typeof conversations)[number]) =>
+            conv.unread?.get(loggedInUserId.toString()) ?? 0;
 
         const formattedConversations = conversations.reduce<object[]>((acc, conv) => {
             if (conv.isGroupChat) {
@@ -60,6 +73,8 @@ export const getConversations = async (req: Request, res: Response) => {
                     participants: conv.participants,
                     admins: conv.admins,
                     updatedAt: conv.updatedAt,
+                    lastMessage: preview(conv),
+                    unreadCount: unreadCount(conv),
                 });
             } else {
                 const otherParticipant = conv.participants.find(
@@ -76,6 +91,8 @@ export const getConversations = async (req: Request, res: Response) => {
                         username: otherParticipant.username,
                         isPublic: otherParticipant.isPublic,
                         updatedAt: conv.updatedAt,
+                        lastMessage: preview(conv),
+                        unreadCount: unreadCount(conv),
                     });
                 }
             }

@@ -13,14 +13,13 @@ const useNotificationChat = () => {
     const conversations = useConversation((state) => state.conversations);
 
     const openPending = () => {
-        const { conversations, setSelectedConversation, clearUnreadMessage } = useConversation.getState();
+        const { conversations, setSelectedConversation, clearUnread } = useConversation.getState();
         if (!pendingId.current || conversations.length === 0) return;
         const conversation = conversations.find((c) => c._id === pendingId.current);
         pendingId.current = null;
         if (!conversation) return;
         setSelectedConversation(conversation);
-        clearUnreadMessage(conversation._id);
-        if (conversation.participantId) clearUnreadMessage(conversation.participantId);
+        clearUnread(conversation._id);
     };
 
     useEffect(() => {

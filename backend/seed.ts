@@ -95,6 +95,14 @@ const createChat = async ({ participants, group, messages }: SeedChat) => {
         };
     });
 
+    // A message still marked "sent" is unread for everyone but its sender
+    const unread = Object.fromEntries(
+        participants.map((user) => [
+            user._id.toString(),
+            docs.filter((doc) => doc.status === "sent" && !doc.isSystem && !doc.senderId.equals(user._id)).length,
+        ]),
+    );
+
     const first = docs[0].createdAt;
     const last = docs[docs.length - 1].createdAt;
     await Conversation.insertMany(
@@ -102,8 +110,10 @@ const createChat = async ({ participants, group, messages }: SeedChat) => {
             {
                 _id: conversationId,
                 participants: participants.map((user) => user._id),
-                messages: ids,
                 lastSeq: docs.length,
+                lastMessage: ids[ids.length - 1],
+                lastMessageSeq: docs.length,
+                unread,
                 isGroupChat: !!group,
                 groupName: group?.name,
                 groupIcon: group?.icon,
