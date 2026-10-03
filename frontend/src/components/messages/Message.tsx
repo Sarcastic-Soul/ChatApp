@@ -37,6 +37,7 @@ import {
     type Icon,
 } from "@phosphor-icons/react";
 import { errorMessage } from "../../utils/errorMessage";
+import { cdnImage } from "../../utils/cdn";
 import { senderIdOf, senderProfileOf } from "../../utils/sender";
 import type { ApiError, AuthUser, Conversation, Message as MessageData, QuotedMessage, Reaction } from "../../types";
 
@@ -336,7 +337,7 @@ const Message = ({ message }: { message: MessageData }) => {
                             <Box mb={message.message ? 6 : 0}>
                                 {message.mediaType === "image" ? (
                                     <img
-                                        src={message.mediaUrl}
+                                        src={cdnImage(message.mediaUrl, 480)}
                                         alt="Shared image"
                                         loading="lazy"
                                         decoding="async"

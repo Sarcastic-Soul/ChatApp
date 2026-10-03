@@ -49,10 +49,12 @@ const useGetMessages = () => {
         setLoading(true);
         setInitialLoad(true);
 
+        let hasCached = false;
         try {
             const unsent = await unsentFor(conversationId);
             const cached = await getCachedMessages(conversationId);
-            if (cached && cached.length > 0) {
+            hasCached = cached.length > 0;
+            if (hasCached) {
                 setMessages([...cached, ...unsent]);
                 setHasMore(cached.length % 50 === 0);
             }
@@ -77,11 +79,14 @@ const useGetMessages = () => {
             markAsRead(conversationId);
         } catch (error) {
             console.error("Error fetching messages:", error);
-            notifications.show({
-                message: errorMessage(error) || "Failed to load messages",
-                color: "red",
-            });
-            setMessages([]);
+            // Offline: the saved copy stays on screen
+            if (!hasCached || navigator.onLine) {
+                notifications.show({
+                    message: errorMessage(error) || "Failed to load messages",
+                    color: "red",
+                });
+            }
+            if (!hasCached) setMessages([]);
         } finally {
             setLoading(false);
             setInitialLoad(false);

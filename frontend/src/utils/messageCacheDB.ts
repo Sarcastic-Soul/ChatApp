@@ -1,5 +1,5 @@
 import { openDB, deleteDB, type DBSchema, type IDBPDatabase } from "idb";
-import type { Message } from "../types";
+import type { Conversation, Message } from "../types";
 
 const DB_NAME = "chat-db";
 
@@ -24,6 +24,11 @@ interface ChatDB extends DBSchema {
         key: string;
         value: OutboxEntry;
     };
+    // A single row: the chat list as it was last loaded
+    chats: {
+        key: string;
+        value: { id: string; conversations: Conversation[] };
+    };
 }
 
 let dbInstance: IDBPDatabase<ChatDB> | null = null;
@@ -32,13 +37,16 @@ let dbPromise: Promise<IDBPDatabase<ChatDB>> | null = null;
 
 const getDB = () => {
     if (!dbPromise) {
-        dbPromise = openDB<ChatDB>(DB_NAME, 2, {
+        dbPromise = openDB<ChatDB>(DB_NAME, 3, {
             upgrade(db) {
                 if (!db.objectStoreNames.contains("messages")) {
                     db.createObjectStore("messages", { keyPath: "id" });
                 }
                 if (!db.objectStoreNames.contains("outbox")) {
                     db.createObjectStore("outbox", { keyPath: "clientId" });
+                }
+                if (!db.objectStoreNames.contains("chats")) {
+                    db.createObjectStore("chats", { keyPath: "id" });
                 }
             },
         }).then((db) => {
@@ -47,6 +55,18 @@ const getDB = () => {
         });
     }
     return dbPromise;
+};
+
+// The chat list, kept so the app opens with it before the network
+// answers, and when there is no network at all
+export const getCachedChats = async () => {
+    const db = await getDB();
+    return (await db.get("chats", "list"))?.conversations ?? [];
+};
+
+export const setCachedChats = async (conversations: Conversation[]) => {
+    const db = await getDB();
+    await db.put("chats", { id: "list", conversations });
 };
 
 /**
