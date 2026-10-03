@@ -6,8 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://socket-chat-nine-tau.vercel.app/"><img alt="Live demo" src="https://img.shields.io/badge/Live_demo-socket--chat-111?style=flat-square&logo=vercel"></a>
-  <a href="https://youtu.be/9GX83N07K70"><img alt="Video tour" src="https://img.shields.io/badge/Video_tour-YouTube-c4302b?style=flat-square&logo=youtube"></a>
+  <a href="https://chatapp-e2e.vercel.app/"><img alt="Live demo" src="https://img.shields.io/badge/Live_demo-chatapp--e2e-111?style=flat-square&logo=vercel"></a>
   <a href="https://github.com/Sarcastic-Soul/ChatApp/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/Sarcastic-Soul/ChatApp/ci.yml?style=flat-square&label=tests"></a>
   <a href="https://github.com/Sarcastic-Soul/ChatApp/actions/workflows/keep-alive.yml"><img alt="Keep backend awake" src="https://img.shields.io/github/actions/workflow/status/Sarcastic-Soul/ChatApp/keep-alive.yml?style=flat-square&label=backend%20ping"></a>
 </p>
@@ -27,7 +26,7 @@
   <a href="#tech-stack">Tech stack</a> ·
   <a href="#running-locally">Running locally</a> ·
   <a href="#testing">Testing</a> ·
-  <a href="https://socket-chat-nine-tau.vercel.app/docs/">API reference</a> ·
+  <a href="https://chatapp-e2e.vercel.app/docs/">API reference</a> ·
   <a href="#deployment">Deployment</a>
 </p>
 
@@ -37,7 +36,7 @@
 
 ## Try it
 
-Open the [live app](https://socket-chat-nine-tau.vercel.app/) and press **Try the demo account**, or log in by hand:
+Open the [live app](https://chatapp-e2e.vercel.app/) and press **Try the demo account**, or log in by hand:
 
 | Username | Password | Encryption passphrase |
 | --- | --- | --- |
@@ -46,6 +45,7 @@ Open the [live app](https://socket-chat-nine-tau.vercel.app/) and press **Try th
 Good to know:
 
 - **The demo account is shared**, so its passphrase is public.
+- **Alice's chats show every feature**: photos, a video, an audio clip, replies, reactions, edited, deleted and forwarded messages, call logs and two groups.
 - **Demo chats are not end-to-end encrypted.** The seeded people have never logged in and have no keys, so those chats are encrypted on the server only.
 - **To see end-to-end encryption**, sign up two accounts of your own.
 - **The first request can be slow.** The backend runs on Render's free tier. A GitHub Actions job pings it every 10 minutes, but if it has been asleep, the first request can take up to a minute.
@@ -382,7 +382,7 @@ The backend reads `backend/.env` with Node's built-in `--env-file-if-exists`, so
 
 ## API reference
 
-The full reference is a live page: **[socket-chat-nine-tau.vercel.app/docs](https://socket-chat-nine-tau.vercel.app/docs/)**
+The full reference is a live page: **[chatapp-e2e.vercel.app/docs](https://chatapp-e2e.vercel.app/docs/)**
 
 - 39 routes in 9 groups: auth, users, messages, keys, groups, calls, push, uploads and health.
 - All routes start with `/api`. Every route except signup, login, logout and the push public key needs the login cookie.

@@ -3,7 +3,7 @@
 const defaultOrigins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://socket-chat-nine-tau.vercel.app",
+    "https://chatapp-e2e.vercel.app",
 ];
 
 const extraOrigins = (process.env.CLIENT_ORIGINS || "")
