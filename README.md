@@ -61,7 +61,6 @@ Good to know:
 - **Alice's chats show every feature**: photos, a video, an audio clip, replies, reactions, edited, deleted and forwarded messages, call logs and two groups.
 - **Demo chats are not end-to-end encrypted.** The seeded people have never logged in and have no keys, so those chats are encrypted on the server only.
 - **To see end-to-end encryption**, sign up two accounts of your own.
-- **The first request can be slow.** The backend runs on Render's free tier. A GitHub Actions job pings it every 10 minutes, but if it has been asleep, the first request can take up to a minute.
 
 ## Features
 
@@ -138,7 +137,7 @@ The full write-up, with the delivery, scaling and encryption details, is in [doc
 | --- | --- |
 | Frontend | React 19, TypeScript, Vite 8, Mantine 9, React Router 8, Zustand 5, Motion, Phosphor Icons, Socket.io client, `idb` |
 | Backend | Node.js 22, TypeScript (run by Node directly), Express 5, Socket.io 4, Mongoose 9, zod 4, JWT, bcrypt, helmet, `express-rate-limit`, `leo-profanity` |
-| Services | MongoDB Atlas, Cloudinary, Groq, Google STUN, Cloudflare TURN |
+| Services | MongoDB, Cloudinary, Groq, Google STUN, Cloudflare TURN |
 | Hosting | Vercel (frontend and `/api` proxy), Render (API and sockets), GitHub Actions (keep-alive ping) |
 | Tooling | Docker Compose, nginx, Redis, k6, pnpm, Vitest, supertest, mongodb-memory-server, ESLint 10 (flat config, typescript-eslint), GitHub Actions CI, D2 |
 
@@ -197,7 +196,6 @@ Running without Docker, the three-server setup, every script and the environment
 | [How it works](docs/how-it-works.md) | Delivery, scaling, encryption and search in detail |
 | [Development](docs/development.md) | Running locally, scripts, environment variables and the folder tree |
 | [Testing](docs/testing.md) | What the tests cover, and how the benchmarks were measured |
-| [Deployment](docs/deployment.md) | Vercel, Render and GitHub Actions setup |
 | [Security](SECURITY.md) | What is and isn't protected, and how to report a problem |
 
 ## License
