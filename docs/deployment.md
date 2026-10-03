@@ -15,7 +15,7 @@ Everything deploys from `main`.
 | Setting | Value |
 | --- | --- |
 | Root directory | `backend` |
-| Node version | 22.18 or later (it runs the `.ts` files directly) |
+| Node version | 22, pinned in `backend/.node-version`. Render's Node 24 image keeps `pnpm` on a read-only path, so `corepack enable` fails there. To move to 24, change the build command to `pnpm install --frozen-lockfile` and delete the file |
 | Build command | `corepack enable && pnpm install --frozen-lockfile` |
 | Start command | `pnpm start` |
 | Auto-deploy | Off |
