@@ -19,7 +19,7 @@ Everything deploys from `main`.
 | Build command | `corepack enable && pnpm install --frozen-lockfile` |
 | Start command | `pnpm start` |
 | Auto-deploy | Off |
-| Variables | The required ones from [Environment variables](../README.md#environment-variables) |
+| Variables | The required ones from [Environment variables](development.md#environment-variables) |
 
 ## CI and backend deploys (GitHub Actions)
 

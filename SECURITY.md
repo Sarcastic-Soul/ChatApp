@@ -37,5 +37,5 @@ The full design is in [docs/how-it-works.md](docs/how-it-works.md#end-to-end-enc
 
 ## Secrets
 
-- Secrets live in environment variables and are never committed. See [Environment variables](README.md#environment-variables).
+- Secrets live in environment variables and are never committed. See [Environment variables](docs/development.md#environment-variables).
 - An early commit in this repo's history contains an old `.env` file. Every value in it has been replaced, so it no longer opens anything.
