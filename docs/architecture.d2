@@ -16,9 +16,12 @@ users: People {
 
 browser: Browser {
   spa: "React 19 SPA\nMantine 9 · Zustand 5 · Motion"
-  cache: IndexedDB cache {shape: cylinder}
+  e2ee: "Web Crypto\nECDH P-256 keys · AES-GCM"
+  cache: "IndexedDB\nchat cache · outbox · private key" {shape: cylinder}
+  sw: "Service worker\npush notifications"
   rtc: WebRTC peer
-  spa -> cache: offline copy of chats
+  spa -> e2ee: "encrypt and decrypt\nmessages"
+  spa -> cache: "offline copy of chats,\nunsent messages"
   spa -> rtc: calls
 }
 
@@ -26,7 +29,9 @@ peer: Other browser {
   rtc: WebRTC peer
 }
 
-stun: Google STUN
+stun: "Google STUN\nCloudflare TURN"
+
+push: "Browser push service\nGoogle · Mozilla · Apple"
 
 vercel: Vercel {
   static: "Static build\nVite 8"
@@ -36,12 +41,16 @@ vercel: Vercel {
 render: Render · Node 22 {
   api: "Express 5 API\nhelmet · CORS · rate limit\nJWT cookie auth · zod checks"
   io: "Socket.io server\nsocket token auth · zod checks\nuser and group rooms"
-  crypto: "AES-256 encryption\nprofanity filter"
+  crypto: "AES-256 at rest for text\nthe server can read\nsearch hashes · profanity filter"
   api -> crypto
   api -> io: "push new messages,\nedits, reactions"
 }
 
-cron: "GitHub Actions\nkeep-alive every 10 min"
+cron: "GitHub Actions\ntests, then deploy hook\nkeep-alive every 10 min"
+
+redis: "Redis (optional)\njoins several servers" {
+  shape: cylinder
+}
 
 atlas: "MongoDB Atlas\nMongoose 9" {
   shape: cylinder
@@ -62,12 +71,17 @@ browser.spa -> cloudinary: signed upload
 render.api -> cloudinary: sign upload {
   style.stroke-dash: 4
 }
-render.api -> atlas: encrypted messages
+render.api -> atlas: "ciphertext, sealed chat keys,\nsequence numbers"
 render.io -> atlas: group membership
 render.api -> groq: magic reply
 browser.rtc <-> peer.rtc: audio and video {
   style.stroke-width: 3
 }
-browser.rtc -> stun: find public address
+browser.rtc -> stun: "find public address,\nrelay if blocked"
 peer.rtc -> stun
 cron -> render.api: "GET /healthz"
+render.api -> push: Web Push (VAPID)
+push -> browser.sw: "New message"
+render.io <-> redis: "socket events,\nonline status" {
+  style.stroke-dash: 4
+}
