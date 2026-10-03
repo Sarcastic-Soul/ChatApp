@@ -33,12 +33,12 @@ stun: "Google STUN\nCloudflare TURN"
 
 push: "Browser push service\nGoogle · Mozilla · Apple"
 
-vercel: Vercel {
+web: Web server {
   static: "Static build\nVite 8"
-  rewrite: "/api/* rewrite"
+  rewrite: "/api/* proxy"
 }
 
-render: Render · Node 22 {
+server: Backend · Node 22 {
   api: "Express 5 API\nhelmet · CORS · rate limit\nJWT cookie auth · zod checks"
   io: "Socket.io server\nsocket token auth · zod checks\nuser and group rooms"
   crypto: "AES-256 at rest for text\nthe server can read\nsearch hashes · profanity filter"
@@ -46,13 +46,11 @@ render: Render · Node 22 {
   api -> io: "push new messages,\nedits, reactions"
 }
 
-cron: "GitHub Actions\ntests, then deploy hook\nkeep-alive every 10 min"
-
 redis: "Redis (optional)\njoins several servers" {
   shape: cylinder
 }
 
-atlas: "MongoDB Atlas\nMongoose 9" {
+mongo: "MongoDB\nMongoose 9" {
   shape: cylinder
 }
 
@@ -61,27 +59,26 @@ cloudinary: "Cloudinary\nimages · video · voice notes"
 groq: "Groq API\nopenai/gpt-oss-120b"
 
 users -> browser.spa
-browser.spa -> vercel.static: load app
-browser.spa -> vercel.rewrite: "HTTPS + auth cookie"
-vercel.rewrite -> render.api: proxy
-browser.spa <-> render.io: WebSocket {
+browser.spa -> web.static: load app
+browser.spa -> web.rewrite: "HTTPS + auth cookie"
+web.rewrite -> server.api: proxy
+browser.spa <-> server.io: WebSocket {
   style.stroke-dash: 4
 }
 browser.spa -> cloudinary: signed upload
-render.api -> cloudinary: sign upload {
+server.api -> cloudinary: sign upload {
   style.stroke-dash: 4
 }
-render.api -> atlas: "ciphertext, sealed chat keys,\nsequence numbers"
-render.io -> atlas: group membership
-render.api -> groq: magic reply
+server.api -> mongo: "ciphertext, sealed chat keys,\nsequence numbers"
+server.io -> mongo
+server.api -> groq: magic reply
 browser.rtc <-> peer.rtc: audio and video {
   style.stroke-width: 3
 }
 browser.rtc -> stun: "find public address,\nrelay if blocked"
 peer.rtc -> stun
-cron -> render.api: "GET /healthz"
-render.api -> push: Web Push (VAPID)
+server.api -> push: Web Push (VAPID)
 push -> browser.sw: "New message"
-render.io <-> redis: "socket events,\nonline status" {
+server.io <-> redis: "socket events,\nonline status" {
   style.stroke-dash: 4
 }
