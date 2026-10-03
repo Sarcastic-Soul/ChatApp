@@ -33,16 +33,32 @@ const Landing = () => {
     const { loading, login } = useLogin();
     const reduce = useReducedMotion();
 
+    // The free server sleeps and restarts on every deploy, so one failed
+    // check doesn't mean it is down: keep asking until it answers
     useEffect(() => {
+        let stopped = false;
+        let timer: ReturnType<typeof setTimeout>;
+        let tries = 0;
         const checkStatus = async () => {
+            let ok = false;
             try {
                 const res = await fetch(`${import.meta.env.VITE_API_URL}/healthz`);
-                setServerStatus(res.ok ? "online" : "offline");
+                ok = res.ok;
             } catch {
-                setServerStatus("offline");
+                ok = false;
             }
+            if (stopped) return;
+            if (ok) return setServerStatus("online");
+            tries += 1;
+            // About a minute of quiet retries before calling it offline
+            if (tries >= 12) setServerStatus("offline");
+            timer = setTimeout(checkStatus, 5000);
         };
         checkStatus();
+        return () => {
+            stopped = true;
+            clearTimeout(timer);
+        };
     }, []);
 
     const rise = (delay: number): MotionProps => ({

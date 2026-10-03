@@ -47,6 +47,16 @@ app.get("/healthz", (req, res) => {
     res.status(200).json({ status: "ok" });
 });
 
+// Someone opening the server's own address gets pointed to the app
+app.get("/", (req, res) => {
+    res.status(200).json({
+        name: "ChatApp API",
+        status: "ok",
+        app: "https://chatapp-e2e.vercel.app",
+        docs: "https://chatapp-e2e.vercel.app/docs/",
+    });
+});
+
 // The frontend is served by Vercel, so anything else here is a 404
 app.use((req, res) => {
     res.status(404).json({ error: "Not found" });
