@@ -6,11 +6,13 @@ import { errorMessage } from "../utils/errorMessage";
 import { addToOutbox } from "../utils/messageCacheDB";
 import { flushOutbox } from "../utils/outbox";
 import { senderIdOf } from "../utils/sender";
-import type { MediaType, Message } from "../types";
+import type { MediaSecret, MediaType, Message } from "../types";
 
 export interface MediaAttachment {
     url: string;
     type: MediaType;
+    // Set when the file was encrypted before upload
+    secret?: MediaSecret;
 }
 
 interface SendMessageBody {
@@ -19,6 +21,8 @@ interface SendMessageBody {
     replyTo?: string;
     mediaUrl?: string;
     mediaType?: MediaType;
+    // Never sent as it is: the outbox encrypts it into the message
+    mediaSecret?: MediaSecret;
 }
 
 // The message shows in the chat straight away, marked as sending. It waits
@@ -43,6 +47,7 @@ const useSendMessage = () => {
             if (media && media.url && media.type) {
                 body.mediaUrl = media.url;
                 body.mediaType = media.type;
+                if (media.secret) body.mediaSecret = media.secret;
             }
 
             const now = new Date().toISOString();
@@ -55,6 +60,7 @@ const useSendMessage = () => {
                 message: messageText,
                 mediaUrl: body.mediaUrl ?? null,
                 mediaType: body.mediaType ?? "text",
+                media: body.mediaSecret,
                 status: "sent",
                 isEdited: false,
                 isDeleted: false,

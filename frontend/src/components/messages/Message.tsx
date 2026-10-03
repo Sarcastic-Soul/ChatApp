@@ -37,7 +37,7 @@ import {
     type Icon,
 } from "@phosphor-icons/react";
 import { errorMessage } from "../../utils/errorMessage";
-import { cdnImage } from "../../utils/cdn";
+import MessageMedia from "./MessageMedia";
 import { senderIdOf, senderProfileOf } from "../../utils/sender";
 import type { ApiError, AuthUser, Conversation, Message as MessageData, QuotedMessage, Reaction } from "../../types";
 
@@ -335,30 +335,7 @@ const Message = ({ message }: { message: MessageData }) => {
 
                         {message.mediaUrl && (
                             <Box mb={message.message ? 6 : 0}>
-                                {message.mediaType === "image" ? (
-                                    <img
-                                        src={cdnImage(message.mediaUrl, 480)}
-                                        alt="Shared image"
-                                        loading="lazy"
-                                        decoding="async"
-                                        style={{
-                                            display: "block",
-                                            maxWidth: "100%",
-                                            borderRadius: 10,
-                                            maxHeight: 260,
-                                            objectFit: "cover",
-                                        }}
-                                    />
-                                ) : message.mediaType === "audio" ? (
-                                    <audio src={message.mediaUrl} controls style={{ maxWidth: "100%", width: 250 }} />
-                                ) : (
-                                    <video
-                                        src={message.mediaUrl}
-                                        controls
-                                        preload="metadata"
-                                        style={{ display: "block", maxWidth: "100%", borderRadius: 10, maxHeight: 260 }}
-                                    />
-                                )}
+                                <MessageMedia message={message} />
                             </Box>
                         )}
 

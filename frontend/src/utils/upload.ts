@@ -14,21 +14,27 @@ interface CloudinaryResponse {
 }
 
 // Uploads a file straight to Cloudinary with a signature from the backend
-// (`signatureUrl` picks the folder) and returns the file's URL
-export const uploadToCloudinary = async (file: File, signatureUrl = "/api/cloudinary/signature") => {
+// (`signatureUrl` picks the folder) and returns the file's URL. `raw` is
+// for encrypted files: stored as they are, with no attempt to read them.
+export const uploadToCloudinary = async (
+    file: Blob,
+    signatureUrl = "/api/cloudinary/signature",
+    { name, raw = false }: { name?: string; raw?: boolean } = {},
+) => {
     const sigRes = await fetch(signatureUrl);
     const sigData = (await sigRes.json()) as UploadSignature;
 
     if (sigData.error) throw new Error(sigData.error);
 
     const formData = new FormData();
-    formData.append("file", file);
+    if (name) formData.append("file", file, name);
+    else formData.append("file", file);
     formData.append("api_key", sigData.apiKey);
     formData.append("timestamp", String(sigData.timestamp));
     formData.append("signature", sigData.signature);
     formData.append("folder", sigData.folder);
 
-    const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sigData.cloudName}/auto/upload`, {
+    const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sigData.cloudName}/${raw ? "raw" : "auto"}/upload`, {
         method: "POST",
         body: formData,
         credentials: "omit",

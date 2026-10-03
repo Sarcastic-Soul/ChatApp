@@ -1,8 +1,8 @@
 import { notifications } from "@mantine/notifications";
 import useConversation from "../zustand/useConversation";
 import { getOutbox, removeFromOutbox, type OutboxEntry } from "./messageCacheDB";
-import { openMessage, sendSealed } from "./e2ee/chats";
-import type { ApiError, Conversation, Message, PublicUser } from "../types";
+import { NotEncryptedError, openMessage, sendSealed } from "./e2ee/chats";
+import type { ApiError, Conversation, MediaSecret, Message, PublicUser } from "../types";
 
 // Every message is saved to the outbox in IndexedDB before it is sent and
 // removed once the server has it. Sends that fail because the network or
@@ -75,16 +75,29 @@ const applySent = async (
 };
 
 const deliver = async (entry: OutboxEntry, authUserId: string): Promise<Outcome> => {
+    // The attachment's key stays out of the request; it goes inside the
+    // encrypted part instead
+    const { mediaSecret, ...body } = entry.body;
     let res: Response;
     try {
-        res = await sendSealed(entry.targetId, String(entry.body.message ?? ""), (fields) =>
-            fetch(`/api/messages/send/${entry.targetId}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...entry.body, ...fields }),
-            }),
+        res = await sendSealed(
+            entry.targetId,
+            String(body.message ?? ""),
+            (fields) =>
+                fetch(`/api/messages/send/${entry.targetId}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ...body, ...fields }),
+                }),
+            mediaSecret as MediaSecret | undefined,
         );
-    } catch {
+    } catch (error) {
+        if (error instanceof NotEncryptedError) {
+            await removeFromOutbox(entry.clientId);
+            useConversation.getState().dropMessage(entry.clientId);
+            notifications.show({ message: error.message, color: "red" });
+            return "rejected";
+        }
         return "retry"; // offline, or the chat's keys couldn't be loaded
     }
 

@@ -20,11 +20,42 @@ const signUp = async (page, fullName, username) => {
     await expect(page.getByRole("navigation", { name: "Chats" })).toBeVisible();
 };
 
+// A 1x1 PNG
+const PHOTO = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+    "base64",
+);
+
+// The bytes of the "file" field in an upload form
+const uploadedFile = (request) => {
+    const body = request.postDataBuffer();
+    const start = body.indexOf("\r\n\r\n", body.indexOf('name="file"')) + 4;
+    const boundary = body.subarray(0, body.indexOf("\r\n"));
+    return body.subarray(start, body.indexOf(Buffer.concat([Buffer.from("\r\n"), boundary]), start));
+};
+
+// Stands in for the media host: keeps what's uploaded and serves it back
+const fakeMediaHost = async (context, uploads) => {
+    const headers = { "access-control-allow-origin": "*" };
+    await context.route("https://api.cloudinary.com/**", async (route) => {
+        uploads.push(uploadedFile(route.request()));
+        const url = `https://res.cloudinary.com/e2e-cloud/raw/upload/v1/${uploads.length - 1}.bin`;
+        await route.fulfill({ json: { secure_url: url }, headers });
+    });
+    await context.route("https://res.cloudinary.com/**", async (route) => {
+        const id = Number(route.request().url().match(/(\d+)\.bin$/)?.[1]);
+        await route.fulfill({ body: uploads[id], contentType: "application/octet-stream", headers });
+    });
+};
+
 const isSend = (request) => request.method() === "POST" && request.url().includes("/api/messages/send/");
 
 test("two people chat in real time", async ({ browser }) => {
     const aliceContext = await browser.newContext();
     const bobContext = await browser.newContext();
+    const uploads = [];
+    await fakeMediaHost(aliceContext, uploads);
+    await fakeMediaHost(bobContext, uploads);
     const alice = await aliceContext.newPage();
     const bob = await bobContext.newPage();
 
@@ -66,6 +97,20 @@ test("two people chat in real time", async ({ browser }) => {
     await alice.getByRole("textbox", { name: "Message", exact: true }).fill("Profanity check: shit happens");
     await alice.getByRole("button", { name: "Send" }).click();
     await expect(bob.getByRole("main").getByText("Profanity check: **** happens")).toBeVisible();
+
+    // A photo is encrypted before it's uploaded: the media host gets bytes
+    // it can't read, and the key travels inside the encrypted message
+    await alice.locator('input[type="file"]').setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: PHOTO });
+    await alice.getByRole("textbox", { name: "Message", exact: true }).fill("Photo from the trip");
+    const photoSend = alice.waitForRequest(isSend);
+    await alice.getByRole("button", { name: "Send" }).click();
+    const photo = (await photoSend).postDataJSON();
+    expect(photo.e2ee.media).toBeTruthy();
+    expect(photo.mediaSecret).toBeUndefined();
+    expect(uploads).toHaveLength(1);
+    expect(uploads[0].includes("PNG")).toBe(false);
+    await expect(bob.getByRole("main").getByText("Photo from the trip")).toBeVisible();
+    await expect(bob.getByRole("main").getByAltText("Shared image")).toHaveAttribute("src", /^blob:/);
 
     // A message written offline waits in the outbox and goes out once the
     // connection is back, exactly once

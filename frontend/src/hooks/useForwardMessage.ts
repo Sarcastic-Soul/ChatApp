@@ -3,6 +3,7 @@ import { notifications } from "@mantine/notifications";
 import useConversation from "../zustand/useConversation";
 import { errorMessage } from "../utils/errorMessage";
 import { openMessage, sendSealed } from "../utils/e2ee/chats";
+import { mediaForChat } from "../utils/e2ee/media";
 import type { ApiError, Message } from "../types";
 
 const useForwardMessage = () => {
@@ -12,8 +13,11 @@ const useForwardMessage = () => {
     const forwardMessage = async (targetConversationId: string, originalMessage: Message) => {
         setLoading(true);
         try {
+            // An attachment keeps its key between encrypted chats, and is
+            // encrypted or decrypted first when the two chats differ
+            const media = await mediaForChat(targetConversationId, originalMessage);
             const body = {
-                mediaUrl: originalMessage.mediaUrl,
+                mediaUrl: media?.url ?? null,
                 mediaType: originalMessage.mediaType,
                 isForwarded: true
             };
@@ -28,6 +32,7 @@ const useForwardMessage = () => {
                     body: JSON.stringify({ ...body, ...fields }),
                     credentials: "include",
                 }),
+                media?.secret,
             );
 
             const data = (await res.json()) as { newMessage: Message } & ApiError;

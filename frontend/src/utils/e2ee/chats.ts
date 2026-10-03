@@ -1,7 +1,7 @@
 import filter from "leo-profanity";
 import { currentIdentity } from "./identity";
 import { decryptText, encryptText, newChatKey, openChatKey, sealChatKey, type SealedKey } from "./crypto";
-import type { ApiError, E2eeFields, Message, QuotedMessage } from "../../types";
+import type { ApiError, E2eeFields, MediaSecret, Message, QuotedMessage } from "../../types";
 
 // Encrypting and decrypting chat messages. A chat goes end to end once
 // every member has a key; from then on the server refuses plain text in it.
@@ -38,6 +38,13 @@ export interface SealedFields {
 export class LockedError extends Error {
     constructor() {
         super("Unlock encryption to send messages.");
+    }
+}
+
+// An encrypted attachment can't go to a chat that isn't end to end
+export class NotEncryptedError extends Error {
+    constructor() {
+        super("This chat is no longer encrypted. Attach the file again.");
     }
 }
 
@@ -102,12 +109,30 @@ const chatKey = (conversationId: string, epoch: number) => {
     return key;
 };
 
+const sealText = async (key: CryptoKey, epoch: number, text: string, media?: MediaSecret) => {
+    const { ciphertext, iv } = await encryptText(key, text);
+    const e2ee: E2eeFields = { epoch, iv };
+    if (media) {
+        const sealed = await encryptText(key, JSON.stringify(media));
+        e2ee.media = { epoch, iv: sealed.iv, data: sealed.ciphertext };
+    }
+    return { message: ciphertext, e2ee };
+};
+
 // Prepares the text of a message for a chat. Plain until the chat is end
 // to end; after that it's filtered for profanity here (the server can't)
 // and encrypted, with a new chat key when the newest one is out of date.
-export const sealForChat = async (id: string, text: string, { fresh = false } = {}): Promise<SealedFields> => {
+// `media` is the key of an attachment that was encrypted before upload.
+export const sealForChat = async (
+    id: string,
+    text: string,
+    { fresh = false, media }: { fresh?: boolean; media?: MediaSecret } = {},
+): Promise<SealedFields> => {
     const info = await chatInfo(id, fresh);
-    if (!info.ready) return { message: text };
+    if (!info.ready) {
+        if (media) throw new NotEncryptedError();
+        return { message: text };
+    }
 
     const identity = currentIdentity();
     if (!identity) throw new LockedError();
@@ -115,10 +140,7 @@ export const sealForChat = async (id: string, text: string, { fresh = false } = 
 
     if (info.current && info.conversationId && info.epoch) {
         const key = await chatKey(info.conversationId, info.epoch);
-        if (key) {
-            const { ciphertext, iv } = await encryptText(key, clean);
-            return { message: ciphertext, e2ee: { epoch: info.epoch, iv } };
-        }
+        if (key) return sealText(key, info.epoch, clean, media);
     }
 
     const key = await newChatKey();
@@ -129,14 +151,14 @@ export const sealForChat = async (id: string, text: string, { fresh = false } = 
             return { userId: member._id, keyVersion: member.keyVersion, ...(await sealChatKey(key, member.publicKey)) };
         }),
     );
-    const { ciphertext, iv } = await encryptText(key, clean);
+    const sealed = await sealText(key, epoch, clean, media);
     // The next message picks up the saved key from the server
     forgetChatInfo(id);
     if (info.conversationId) forgetChatInfo(info.conversationId);
-    return { message: ciphertext, e2ee: { epoch, iv }, newKey: { epoch, envelopes } };
+    return { ...sealed, newKey: { epoch, envelopes } };
 };
 
-const openText = async (conversationId: string, e2ee: E2eeFields, ciphertext: string) => {
+const openText = async (conversationId: string, e2ee: Pick<E2eeFields, "epoch" | "iv">, ciphertext: string) => {
     try {
         const key = await chatKey(conversationId, e2ee.epoch);
         return key ? await decryptText(key, { ciphertext, iv: e2ee.iv }) : null;
@@ -148,10 +170,21 @@ const openText = async (conversationId: string, e2ee: E2eeFields, ciphertext: st
 const openPart = async <T extends Message | QuotedMessage>(conversationId: string, part: T): Promise<T> => {
     if (!part.e2ee) return part;
     const text = await openText(conversationId, part.e2ee, part.message);
-    const { e2ee: _sealed, ...rest } = part;
-    return text === null
-        ? { ...rest, message: "", undecryptable: true } as T
-        : { ...rest, message: text, endToEnd: true } as T;
+    const { e2ee: sealed, ...rest } = part;
+    const opened =
+        text === null
+            ? ({ ...rest, message: "", undecryptable: true } as T)
+            : ({ ...rest, message: text, endToEnd: true } as T);
+    if (sealed.media) {
+        const details = await openText(conversationId, sealed.media, sealed.media.data);
+        try {
+            if (details === null) throw new Error("No key");
+            opened.media = JSON.parse(details) as MediaSecret;
+        } catch {
+            opened.mediaLocked = true;
+        }
+    }
+    return opened;
 };
 
 // Decrypts a message from the server, and the message it quotes. Anything
@@ -168,8 +201,13 @@ export const openMessages = (messages: Message[]) => Promise.all(messages.map(op
 // Sends a request carrying sealed text. If the server says the chat's keys
 // changed in the meantime, it seals the text again with fresh keys and
 // sends once more.
-export const sendSealed = async (id: string, text: string, send: (fields: SealedFields) => Promise<Response>) => {
-    const res = await send(await sealForChat(id, text));
+export const sendSealed = async (
+    id: string,
+    text: string,
+    send: (fields: SealedFields) => Promise<Response>,
+    media?: MediaSecret,
+) => {
+    const res = await send(await sealForChat(id, text, { media }));
     if (res.status !== 409) return res;
     const body = (await res
         .clone()
@@ -177,5 +215,5 @@ export const sendSealed = async (id: string, text: string, send: (fields: Sealed
         .catch(() => ({}))) as { code?: string };
     if (body.code !== "keys_changed") return res;
     forgetChatInfo(id);
-    return send(await sealForChat(id, text, { fresh: true }));
+    return send(await sealForChat(id, text, { fresh: true, media }));
 };

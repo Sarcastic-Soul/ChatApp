@@ -74,6 +74,21 @@ export interface Reaction {
 export interface E2eeFields {
     epoch: number;
     iv: string;
+    // The attachment's MediaSecret, encrypted with the chat key of `epoch`
+    media?: { epoch: number; iv: string; data: string };
+}
+
+// What opens an end-to-end encrypted attachment. The file on the media
+// host is ciphertext; this travels inside the encrypted message.
+export interface MediaSecret {
+    key: string;
+    iv: string;
+    // The real type of the file, e.g. image/jpeg
+    mime: string;
+    width?: number;
+    height?: number;
+    // A tiny blurred image, or a video's first frame, as a data: URL
+    preview?: string;
 }
 
 // Set in the browser on text it decrypted, or failed to
@@ -83,6 +98,10 @@ interface Decrypted {
     endToEnd?: boolean;
     // This browser has no key for it
     undecryptable?: boolean;
+    // The attachment was encrypted, and this is what opens it
+    media?: MediaSecret;
+    // The attachment was encrypted and this browser has no key for it
+    mediaLocked?: boolean;
 }
 
 // The message a reply quotes

@@ -24,7 +24,8 @@ export type Envelope = {
     wrappedKey: string;
 };
 export type NewChatKey = { epoch: number; envelopes: Envelope[] };
-export type E2eeFields = { epoch: number; iv: string };
+export type SealedMedia = { epoch: number; iv: string; data: string };
+export type E2eeFields = { epoch: number; iv: string; media?: SealedMedia };
 
 export const memberKeys = (participants: Types.ObjectId[]): Promise<MemberKey[]> =>
     User.find({ _id: { $in: participants } })

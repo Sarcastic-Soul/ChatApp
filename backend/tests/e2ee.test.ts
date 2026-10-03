@@ -224,6 +224,32 @@ describe("one-on-one chats", () => {
         expect(res.body).toMatchObject({ message: edited, isEdited: true, e2ee: { epoch: 3 } });
     });
 
+    test("attachments must be encrypted, and keep their key through an edit", async () => {
+        const mediaUrl = "https://res.cloudinary.com/demo/raw/upload/v1/photo.bin";
+        const plain = await send(alice, chatId, sealed(3, { mediaUrl, mediaType: "image" }));
+        expect(plain.status).toBe(400);
+        expect(plain.body.error).toBe("Attachments in this chat must be encrypted");
+
+        const media = { epoch: 3, iv: b64("media-iv", 16), data: b64("media-key", 120) };
+        const sent = await send(alice, chatId, {
+            message: ciphertext,
+            e2ee: { epoch: 3, iv: b64("iv", 16), media },
+            mediaUrl,
+            mediaType: "image",
+        });
+        expect(sent.status).toBe(201);
+        expect(sent.body.newMessage).toMatchObject({ mediaUrl, e2ee: { epoch: 3, media } });
+
+        const edited = await alice.agent
+            .put(`/api/messages/edit/${sent.body.newMessage._id}`)
+            .send({ message: b64("caption", 64), e2ee: { epoch: 3, iv: b64("iv3", 16) } });
+        expect(edited.body.e2ee).toMatchObject({ iv: b64("iv3", 16), media });
+
+        const deleted = await alice.agent.delete(`/api/messages/delete/${sent.body.newMessage._id}`);
+        expect(deleted.body).toMatchObject({ mediaUrl: null, mediaType: "text" });
+        expect(deleted.body.e2ee).toBeUndefined();
+    });
+
     test("deleting drops the ciphertext", async () => {
         const sent = await send(alice, chatId, sealed(3));
         const res = await alice.agent.delete(`/api/messages/delete/${sent.body.newMessage._id}`);

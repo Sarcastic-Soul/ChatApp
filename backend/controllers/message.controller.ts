@@ -448,7 +448,8 @@ export const editMessage = async (req: ValidatedRequest<typeof editMessageSchema
 
         if (e2ee) {
             message.message = newText;
-            message.e2ee = e2ee;
+            // An edit changes the text only; the attachment keeps its key
+            message.e2ee = { epoch: e2ee.epoch, iv: e2ee.iv, media: message.e2ee?.media ?? undefined };
             message.searchTokens = undefined;
         } else {
             const cleanedText = cleanProfanity(newText);
@@ -498,6 +499,8 @@ export const deleteMessage = async (req: ValidatedRequest<typeof messageIdSchema
         message.message = encryptText("This message was deleted");
         message.e2ee = undefined;
         message.searchTokens = undefined;
+        message.mediaUrl = null;
+        message.mediaType = "text";
         await message.save();
 
         const messageObj = await message.populate<WithSenderAndReply>(WITH_SENDER_AND_REPLY);

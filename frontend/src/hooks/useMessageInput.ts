@@ -6,13 +6,16 @@ import { useAuthContext } from "../context/AuthContext";
 import { useSocketContext } from "../context/SocketContext";
 import { errorMessage } from "../utils/errorMessage";
 import { senderIdOf, senderProfileOf } from "../utils/sender";
-import { uploadToCloudinary } from "../utils/upload";
+import { attachFile } from "../utils/e2ee/media";
 import { isEndToEnd } from "../utils/e2ee/chats";
 import type { ApiError } from "../types";
 
 // Magic reply sends recent messages to the server and Groq as plain text.
 // In an end-to-end chat that needs a yes from the user first, once.
 const CONSENT_KEY = "magic-reply-e2ee-ok";
+
+// The media host takes files up to 10MB
+const MAX_FILE_MB = 10;
 
 const hasConsent = () => {
     try {
@@ -138,10 +141,11 @@ const useMessageInput = () => {
             return;
         }
 
-        // Size validation (e.g., 5MB limit)
-        if (selectedFile.size > 5 * 1024 * 1024) {
+        // Photos are made smaller before they're sent, so they get more room
+        const limitMb = selectedFile.type.startsWith("image/") ? 25 : MAX_FILE_MB;
+        if (selectedFile.size > limitMb * 1024 * 1024) {
             notifications.show({
-                message: "File size must be less than 5MB",
+                message: `File size must be less than ${limitMb}MB`,
                 color: "red",
             });
             return;
@@ -235,17 +239,15 @@ const useMessageInput = () => {
 
         let media: MediaAttachment | null = null;
 
-        if (file) {
+        if (file && selectedConversation) {
             setIsUploading(true);
             try {
-                media = {
-                    url: await uploadToCloudinary(file),
-                    type: file.type.startsWith("video/")
-                        ? "video"
-                        : file.type.startsWith("audio/")
-                          ? "audio"
-                          : "image",
-                };
+                // Encrypted in the browser first when the chat is end to end
+                media = await attachFile(
+                    selectedConversation._id,
+                    file,
+                    file.type.startsWith("video/") ? "video" : file.type.startsWith("audio/") ? "audio" : "image",
+                );
             } catch (error) {
                 notifications.show({
                     message: errorMessage(error) || "Failed to upload file",

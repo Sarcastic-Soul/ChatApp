@@ -63,11 +63,21 @@ const messageSchema = new mongoose.Schema(
         },
         // Set when the browser encrypted the text end to end. `message` then
         // holds AES-GCM ciphertext the server can't read, made with the
-        // chat key of this epoch.
+        // chat key of this epoch. An attachment is uploaded as ciphertext too,
+        // and `media` holds its key and details, encrypted with a chat key.
         e2ee: {
             type: {
                 epoch: { type: Number, required: true },
                 iv: { type: String, required: true },
+                media: {
+                    type: {
+                        epoch: { type: Number, required: true },
+                        iv: { type: String, required: true },
+                        data: { type: String, required: true },
+                        _id: false,
+                    },
+                    default: undefined,
+                },
                 _id: false,
             },
             default: undefined,

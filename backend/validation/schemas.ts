@@ -73,10 +73,19 @@ const newChatKey = z.object({
     envelopes: z.array(envelope).min(1).max(101),
 });
 
+// What a browser needs to open an encrypted attachment (its key, type and a
+// small preview), encrypted with the chat key of `epoch`
+const sealedMedia = z.object({
+    epoch: z.number().int().min(1),
+    iv: base64("IV", 32),
+    data: base64("Attachment details", 60000),
+});
+
 // Which chat key the text was encrypted with
 const e2eeFields = z.object({
     epoch: z.number().int().min(1),
     iv: base64("IV", 32),
+    media: sealedMedia.optional(),
 });
 
 export const setMyKeySchema = {
@@ -161,6 +170,11 @@ export const sendMessageSchema = {
         .refine((data) => data.message.trim() || data.mediaUrl, {
             path: ["message"],
             error: "Message can't be empty",
+        })
+        // The file itself is encrypted in the browser before it's uploaded
+        .refine((data) => !data.e2ee || !data.mediaUrl || data.e2ee.media, {
+            path: ["mediaUrl"],
+            error: "Attachments in this chat must be encrypted",
         }),
 };
 

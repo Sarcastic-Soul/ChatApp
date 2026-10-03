@@ -157,3 +157,20 @@ export const decryptText = async (chatKey: CryptoKey, { ciphertext, iv }: Sealed
     const data = await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromBase64(iv) }, chatKey, fromBase64(ciphertext));
     return new TextDecoder().decode(data);
 };
+
+// Attachments get a key of their own, so forwarding one to another chat
+// only means sharing that key again, not uploading the file a second time
+export const encryptBytes = async (data: ArrayBuffer) => {
+    const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt"]);
+    const iv = randomBytes(12);
+    return {
+        data: await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, data),
+        key: toBase64(await crypto.subtle.exportKey("raw", key)),
+        iv: toBase64(iv),
+    };
+};
+
+export const decryptBytes = async (data: ArrayBuffer, key: string, iv: string) => {
+    const fileKey = await crypto.subtle.importKey("raw", fromBase64(key), "AES-GCM", false, ["decrypt"]);
+    return crypto.subtle.decrypt({ name: "AES-GCM", iv: fromBase64(iv) }, fileKey, data);
+};
