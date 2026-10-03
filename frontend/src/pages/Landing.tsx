@@ -45,7 +45,7 @@ const Landing = () => {
                 const res = await fetch(`${import.meta.env.VITE_API_URL}/healthz`);
                 ok = res.ok;
             } catch {
-                ok = false;
+                // Not reachable yet: retried below
             }
             if (stopped) return;
             if (ok) return setServerStatus("online");
