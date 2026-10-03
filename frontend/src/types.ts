@@ -46,6 +46,8 @@ export interface Conversation {
     // The newest message, shown under the name in the chat list
     lastMessage?: Message | null;
     unreadCount?: number;
+    // Seconds new messages live for; 0 or missing when they are kept
+    disappearAfter?: number;
 }
 
 // GET /api/groups/:groupId
@@ -116,6 +118,8 @@ export interface Message extends Decrypted {
     clientId?: string;
     // Position in the chat, set by the server
     seq?: number;
+    // When a disappearing message is removed for everyone
+    expiresAt?: string;
     // Set in the browser while the message waits in the outbox
     pending?: boolean;
     // Set in the browser, so a message that just arrived shakes once
@@ -165,6 +169,7 @@ export interface ServerToClientEvents {
     messageEdited: (message: Message) => void;
     messageDeleted: (message: Message) => void;
     messagesRead: (data: ReadReceipt) => void;
+    chatTimer: (data: { conversationId: string; disappearAfter: number }) => void;
     typing: (data: TypingEvent) => void;
     stopTyping: (data: TypingEvent) => void;
     incomingCall: (data: {

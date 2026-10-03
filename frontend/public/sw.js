@@ -7,13 +7,20 @@ const MAX_FILES = 120;
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
-const save = async (request, response) => {
-    if (!response.ok || response.type !== "basic") return;
-    const cache = await caches.open(SHELL);
-    await cache.put(request, response.clone());
-    // Old builds leave files behind; drop the oldest
-    const keys = await cache.keys();
-    await Promise.all(keys.slice(0, Math.max(0, keys.length - MAX_FILES)).map((key) => cache.delete(key)));
+// Saving never gets in the way of the response. Only whole files are
+// kept: a part of one (audio asks for ranges) can't be stored.
+const save = (request, response) => {
+    if (response.status !== 200 || response.type !== "basic") return;
+    const copy = response.clone();
+    caches
+        .open(SHELL)
+        .then(async (cache) => {
+            await cache.put(request, copy);
+            // Old builds leave files behind; drop the oldest
+            const keys = await cache.keys();
+            await Promise.all(keys.slice(0, Math.max(0, keys.length - MAX_FILES)).map((key) => cache.delete(key)));
+        })
+        .catch(() => {});
 };
 
 // Pages: the network copy when there is one, else the saved app page.
@@ -21,7 +28,7 @@ const save = async (request, response) => {
 const page = async (request) => {
     try {
         const response = await fetch(request);
-        await save("/", response);
+        save("/", response);
         return response;
     } catch (error) {
         const saved = await caches.match("/");
@@ -35,7 +42,7 @@ const builtFile = async (request) => {
     const saved = await caches.match(request);
     if (saved) return saved;
     const response = await fetch(request);
-    await save(request, response);
+    save(request, response);
     return response;
 };
 
@@ -43,7 +50,7 @@ const builtFile = async (request) => {
 const otherFile = async (request) => {
     try {
         const response = await fetch(request);
-        await save(request, response);
+        save(request, response);
         return response;
     } catch (error) {
         const saved = await caches.match(request);
@@ -56,6 +63,8 @@ self.addEventListener("fetch", (event) => {
     const { request } = event;
     const url = new URL(request.url);
     if (request.method !== "GET" || url.origin !== self.location.origin) return;
+    // Sound and video ask for byte ranges; the browser handles those itself
+    if (request.headers.has("range")) return;
     // The API, sockets and the API reference always go to the network
     if (/^\/(api|socket\.io|docs)(\/|$)/.test(url.pathname) || url.pathname === "/sw.js") return;
 

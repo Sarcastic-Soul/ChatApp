@@ -166,6 +166,20 @@ export const sendMessageSchema = {
 
 export const conversationIdSchema = { params: conversationParams };
 
+// Off, 1 hour, 1 day, 7 days
+export const DISAPPEAR_CHOICES = [0, 3600, 86400, 604800] as const;
+
+export const disappearTimerSchema = {
+    params: conversationParams,
+    body: z.object({
+        seconds: z
+            .number({ error: "Seconds must be a number" })
+            .refine((value) => (DISAPPEAR_CHOICES as readonly number[]).includes(value), {
+                error: "Timer must be off, 1 hour, 1 day or 7 days",
+            }),
+    }),
+};
+
 export const reactionSchema = {
     params: messageParams,
     body: z.object({

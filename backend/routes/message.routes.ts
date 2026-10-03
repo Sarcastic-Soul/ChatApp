@@ -9,11 +9,13 @@ import {
     deleteMessage,
     searchMessages,
 } from "../controllers/message.controller.ts";
+import { setDisappearTimer } from "../controllers/timer.controller.ts";
 import protectRoute from "../middleware/protectRoute.ts";
 import { messageRateLimiter } from "../middleware/rateLimiter.ts";
 import validate from "../middleware/validate.ts";
 import {
     conversationIdSchema,
+    disappearTimerSchema,
     editMessageSchema,
     getMessagesSchema,
     magicReplySchema,
@@ -31,6 +33,7 @@ router.get("/:id", protectRoute, validate(getMessagesSchema), getMessages);
 router.post("/send/:id", protectRoute, messageRateLimiter, validate(sendMessageSchema), sendMessage);
 router.post("/react/:messageId", protectRoute, validate(reactionSchema), addReaction);
 router.post("/read/:id", protectRoute, validate(conversationIdSchema), markMessagesAsRead);
+router.put("/timer/:id", protectRoute, validate(disappearTimerSchema), setDisappearTimer);
 router.post("/magic-reply", protectRoute, messageRateLimiter, validate(magicReplySchema), generateMagicReply);
 router.put("/edit/:messageId", protectRoute, messageRateLimiter, validate(editMessageSchema), editMessage);
 router.delete("/delete/:messageId", protectRoute, messageRateLimiter, validate(messageIdSchema), deleteMessage);

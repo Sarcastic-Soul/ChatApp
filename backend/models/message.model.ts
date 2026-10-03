@@ -72,6 +72,12 @@ const messageSchema = new mongoose.Schema(
             },
             default: undefined,
         },
+        // Set on messages sent while the chat's disappearing timer is on.
+        // MongoDB removes the message once this time has passed (TTL index).
+        expiresAt: {
+            type: Date,
+            default: undefined,
+        },
         // Blind index for search (utils/searchIndex.ts). Never sent to clients.
         searchTokens: {
             type: [String],
@@ -105,6 +111,7 @@ const messageSchema = new mongoose.Schema(
 messageSchema.index({ receiverId: 1, createdAt: -1 });
 messageSchema.index({ searchTokens: 1 });
 messageSchema.index({ receiverId: 1, seq: 1 });
+messageSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 messageSchema.index(
     { senderId: 1, clientId: 1 },
     { unique: true, partialFilterExpression: { clientId: { $type: "string" } } },

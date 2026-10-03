@@ -10,6 +10,7 @@ import User, { type PublicUser } from "../models/user.model.ts";
 import Conversation from "../models/conversation.model.ts";
 import type { MessageDocument } from "../models/message.model.ts";
 import { decryptText } from "../utils/encryption.ts";
+import { hasExpired } from "../utils/expiry.ts";
 
 export const getUsersForNewChat = async (req: Request, res: Response) => {
     try {
@@ -54,7 +55,7 @@ export const getConversations = async (req: Request, res: Response) => {
         // The newest message, for the preview line. End-to-end text goes
         // out as ciphertext, like everywhere else.
         const preview = (conv: (typeof conversations)[number]) => {
-            if (!conv.lastMessage) return null;
+            if (!conv.lastMessage || hasExpired(conv.lastMessage)) return null;
             const last = conv.lastMessage.toObject();
             return { ...last, message: last.e2ee || !last.message ? last.message : decryptText(last.message) };
         };
@@ -73,6 +74,7 @@ export const getConversations = async (req: Request, res: Response) => {
                     participants: conv.participants,
                     admins: conv.admins,
                     updatedAt: conv.updatedAt,
+                    disappearAfter: conv.disappearAfter ?? 0,
                     lastMessage: preview(conv),
                     unreadCount: unreadCount(conv),
                 });
@@ -91,7 +93,8 @@ export const getConversations = async (req: Request, res: Response) => {
                         username: otherParticipant.username,
                         isPublic: otherParticipant.isPublic,
                         updatedAt: conv.updatedAt,
-                        lastMessage: preview(conv),
+                        disappearAfter: conv.disappearAfter ?? 0,
+                    lastMessage: preview(conv),
                         unreadCount: unreadCount(conv),
                     });
                 }

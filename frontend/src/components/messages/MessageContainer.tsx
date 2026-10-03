@@ -10,7 +10,13 @@ import {
     ArrowLeftIcon,
     MagnifyingGlassIcon,
     LockSimpleIcon,
+    TimerIcon,
+    CheckIcon,
 } from "@phosphor-icons/react";
+import { notifications } from "@mantine/notifications";
+import { TIMER_CHOICES, timerLabel } from "../../utils/expiry";
+import { errorMessage } from "../../utils/errorMessage";
+import type { ApiError } from "../../types";
 import { isEndToEnd } from "../../utils/e2ee/chats";
 import { useAuthContext } from "../../context/AuthContext";
 import { useSocketContext } from "../../context/SocketContext";
@@ -25,6 +31,7 @@ import {
     UnstyledButton,
     Tooltip,
     CloseButton,
+    Menu,
 } from "@mantine/core";
 import Avatar from "../Avatar";
 import { useMediaQuery } from "@mantine/hooks";
@@ -34,9 +41,11 @@ const MessageContainer = () => {
     const isMobile = useMediaQuery("(max-width: 768px)");
     const { onlineUsers } = useSocketContext();
     const { callUser } = useCallContext();
+    const { authUser } = useAuthContext();
     const navigate = useNavigate();
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [timerOpen, setTimerOpen] = useState(false);
     const [endToEnd, setEndToEnd] = useState<{ id: string; on: boolean } | null>(null);
 
     const chatId = selectedConversation?._id;
@@ -85,6 +94,30 @@ const MessageContainer = () => {
     const closeSearch = () => {
         setShowSearch(false);
         setSearchQuery("");
+    };
+
+    // A chat opened from "New chat" exists only once its first message is sent
+    const isSaved =
+        !!selectedConversation &&
+        (selectedConversation.isGroupChat || selectedConversation._id !== selectedConversation.participantId);
+    const timer = selectedConversation?.disappearAfter ?? 0;
+    const canSetTimer =
+        isSaved && (!selectedConversation.isGroupChat || !!selectedConversation.admins?.includes(authUser?._id ?? ""));
+
+    const setTimer = async (seconds: number) => {
+        if (!selectedConversation || seconds === timer) return;
+        try {
+            const res = await fetch(`/api/messages/timer/${selectedConversation._id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ seconds }),
+            });
+            const data = (await res.json()) as ApiError;
+            if (!res.ok) throw new Error(data.error || "Couldn't change the timer");
+            // The new setting arrives over the socket, like for everyone else
+        } catch (error) {
+            notifications.show({ message: errorMessage(error), color: "red" });
+        }
     };
 
     const callTarget = selectedConversation?.participantId || selectedConversation?._id;
@@ -162,6 +195,43 @@ const MessageContainer = () => {
                                     <MagnifyingGlassIcon size={20} />
                                 </ActionIcon>
                             </Tooltip>
+
+                            {isSaved && (
+                                <Menu position="bottom-end" width={250} withinPortal opened={timerOpen} onChange={setTimerOpen}>
+                                    <Menu.Target>
+                                        <Tooltip
+                                            disabled={timerOpen}
+                                            label={timer ? `Messages disappear after ${timerLabel(timer)}` : "Disappearing messages"}
+                                        >
+                                            <ActionIcon
+                                                variant={timer ? "light" : "subtle"}
+                                                color={timer ? undefined : "gray"}
+                                                size="lg"
+                                                aria-label="Disappearing messages"
+                                            >
+                                                <TimerIcon size={20} />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    </Menu.Target>
+                                    <Menu.Dropdown>
+                                        <Menu.Label>
+                                            {canSetTimer ? "New messages disappear after" : "Only admins can change this"}
+                                        </Menu.Label>
+                                        {TIMER_CHOICES.map((choice) => (
+                                            <Menu.Item
+                                                key={choice.seconds}
+                                                disabled={!canSetTimer}
+                                                onClick={() => setTimer(choice.seconds)}
+                                                rightSection={
+                                                    choice.seconds === timer ? <CheckIcon size={14} weight="bold" /> : null
+                                                }
+                                            >
+                                                {choice.label}
+                                            </Menu.Item>
+                                        ))}
+                                    </Menu.Dropdown>
+                                </Menu>
+                            )}
 
                             {!selectedConversation.isGroupChat && (
                                 <>

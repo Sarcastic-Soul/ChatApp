@@ -45,6 +45,11 @@ const conversationSchema = new mongoose.Schema(
 		keyEpoch: {
 			type: Number,
 		},
+		// Seconds a new message lives before it is removed for everyone.
+		// Missing or 0 means messages are kept.
+		disappearAfter: {
+			type: Number,
+		},
 		admins: [
 			{
 				type: mongoose.Schema.Types.ObjectId,

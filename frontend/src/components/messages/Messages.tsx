@@ -1,8 +1,7 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import useGetMessages from "../../hooks/useGetMessages";
 import MessageSkeleton from "../skeletons/MessageSkeleton";
 import Message from "./Message";
-import useListenMessages from "../../hooks/useListenMessages";
 import {
     ScrollArea,
     Center,
@@ -13,20 +12,30 @@ import {
 } from "@mantine/core";
 import Avatar from "../Avatar";
 import useConversation from "../../zustand/useConversation";
+import { hasExpired } from "../../utils/expiry";
 
 const MAX_JUMP_PAGES = 20;
 
 const Messages = ({ searchQuery }: { searchQuery: string }) => {
     const { messages, loading, loadOlderMessages, hasMore, isLoadingMore } =
         useGetMessages();
-    useListenMessages();
     const observer = useRef<IntersectionObserver | null>(null);
     const lastMessageRef = useRef<HTMLDivElement>(null);
     const viewportRef = useRef<HTMLDivElement>(null);
     const { typingUsers, selectedConversation, jumpToMessageId, setJumpToMessageId } = useConversation();
 
+    // Disappearing messages leave the screen when their time is up
+    const [now, setNow] = useState(() => Date.now());
+    const hasTimed = messages.some((message) => message.expiresAt);
+    useEffect(() => {
+        if (!hasTimed) return;
+        const timer = setInterval(() => setNow(Date.now()), 15000);
+        return () => clearInterval(timer);
+    }, [hasTimed]);
+
     const filteredMessages =
         messages?.filter((message) => {
+            if (hasExpired(message, now)) return false;
             if (!searchQuery) return true;
             return message.message
                 ?.toLowerCase()

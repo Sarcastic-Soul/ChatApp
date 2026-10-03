@@ -1,4 +1,5 @@
 import { openDB, deleteDB, type DBSchema, type IDBPDatabase } from "idb";
+import { hasExpired } from "./expiry";
 import type { Conversation, Message } from "../types";
 
 const DB_NAME = "chat-db";
@@ -75,7 +76,7 @@ export const setCachedChats = async (conversations: Conversation[]) => {
 export const getCachedMessages = async (conversationId: string) => {
     const db = await getDB();
     const entry = await db.get("messages", conversationId);
-    return entry?.messages || [];
+    return (entry?.messages || []).filter((message) => !hasExpired(message));
 };
 
 /**

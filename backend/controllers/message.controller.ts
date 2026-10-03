@@ -26,6 +26,7 @@ import { messageNotification, sendPushToUsers } from "../utils/push.ts";
 import { matchesQuery, queryTokensFor, searchTokensFor } from "../utils/searchIndex.ts";
 import { ensureSequenced, nextSeq, recordMessage } from "../utils/sequence.ts";
 import { checkChatKey, type KeyRefusal } from "../utils/chatKeys.ts";
+import { expiryFor, notExpired } from "../utils/expiry.ts";
 
 // Messages go out with the sender's profile and the message they reply to
 const WITH_SENDER_AND_REPLY = [
@@ -148,6 +149,7 @@ export const sendMessage = async (req: ValidatedRequest<typeof sendMessageSchema
             replyTo: replyTo || null,
             isCall,
             isForwarded,
+            expiresAt: expiryFor(conversation),
         });
 
         const seq = await nextSeq(conversation._id);
@@ -207,7 +209,7 @@ export const getMessages = async (req: ValidatedRequest<typeof getMessagesSchema
 
         await ensureSequenced(conversation._id);
 
-        const messageQuery: QueryFilter<MessageFields> = { receiverId: conversation._id };
+        const messageQuery: QueryFilter<MessageFields> = { receiverId: conversation._id, ...notExpired() };
 
         if (after !== undefined) {
             // Catching up after a reconnect: only what came after `after`
@@ -533,6 +535,7 @@ export const searchMessages = async (req: ValidatedRequest<typeof searchMessages
             receiverId: { $in: conversations.map((c) => c._id) },
             searchTokens: { $all: tokens },
             isDeleted: { $ne: true },
+            ...notExpired(),
         })
             .sort({ createdAt: -1 })
             .limit(limit * 2)

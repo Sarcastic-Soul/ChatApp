@@ -50,8 +50,17 @@ describe("previewText", () => {
         expect(previewText(chat({ mediaType: "image", message: "look" }), "alice")).toBe("look");
     });
 
-    it("shows group notices and deleted messages without a sender", () => {
-        expect(previewText(chat({ message: "Bob left", isSystem: true }, group), "alice")).toBe("Bob left");
+    it("shows nothing for a message whose timer ran out", () => {
+        expect(previewText(chat({ message: "gone", expiresAt: "2020-01-01T00:00:00.000Z" }), "alice")).toBe("");
+    });
+
+    it("reads group notices as a sentence and deleted messages as they are", () => {
+        expect(previewText(chat({ message: "left the group", isSystem: true }, group), "alice")).toBe(
+            "Bob left the group",
+        );
+        expect(previewText(chat({ message: "renamed the group", isSystem: true, senderId: "alice" }, group), "alice")).toBe(
+            "You renamed the group",
+        );
         expect(previewText(chat({ message: "This message was deleted", isDeleted: true, senderId: "alice" }), "alice")).toBe(
             "This message was deleted",
         );

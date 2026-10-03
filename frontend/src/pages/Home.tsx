@@ -6,6 +6,7 @@ import { useMediaQuery } from "@mantine/hooks";
 import useConversation from "../zustand/useConversation";
 import useNotificationChat from "../hooks/useNotificationChat";
 import useDelivery from "../hooks/useDelivery";
+import useListenMessages from "../hooks/useListenMessages";
 
 const MIN_SIDEBAR = 260;
 
@@ -14,6 +15,8 @@ const Home = () => {
     const isMobile = useMediaQuery("(max-width: 768px)");
     useNotificationChat();
     useDelivery();
+    // Here rather than in the open chat, so the chat list stays live too
+    useListenMessages();
 
     // Start at a quarter of the window, kept between 280px and 400px
     const [sidebarWidth, setSidebarWidth] = useState(() =>

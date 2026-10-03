@@ -6,6 +6,29 @@ import { openMessage } from "../utils/e2ee/chats";
 import { getCachedChats, setCachedChats } from "../utils/messageCacheDB";
 import type { ApiError, Conversation, Message } from "../types";
 
+const fetchConversations = async () => {
+	const res = await fetch(`/api/users/conversations`, { credentials: "include" });
+	if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+	const data = (await res.json()) as Conversation[] & ApiError;
+	if (data.error) throw new Error(data.error);
+	return data;
+};
+
+// End-to-end previews arrive as ciphertext and are decrypted here
+const openPreviews = (conversations: Conversation[]) =>
+	Promise.all(
+		conversations.map(async (conv) =>
+			conv.lastMessage?.e2ee ? { ...conv, lastMessage: await openMessage(conv.lastMessage as Message) } : conv,
+		),
+	);
+
+// Loads the chat list again, for a chat this browser hasn't seen yet
+export const reloadConversations = async () => {
+	const opened = await openPreviews(await fetchConversations());
+	useConversation.getState().setConversations(opened);
+	void setCachedChats(opened).catch(() => undefined);
+};
+
 const useGetConversations = () => {
 	const [loading, setLoading] = useState(false);
 	const { setConversations } = useConversation();
@@ -22,36 +45,9 @@ const useGetConversations = () => {
 			}
 
 			try {
-				const res = await fetch(`/api/users/conversations`, {
-					credentials: 'include',
-					method: 'GET',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-				});
-
-				if (!res.ok) {
-					throw new Error(`HTTP error! status: ${res.status}`);
-				}
-
-				const data = (await res.json()) as Conversation[] & ApiError;
-				if (data.error) {
-					throw new Error(data.error);
-				}
-
-				// End-to-end previews arrive as ciphertext. With a saved list
-				// on screen they are decrypted first; otherwise the list shows
-				// right away and the previews fill in.
-				const openPreviews = () =>
-					Promise.all(
-						data.map(async (conv) =>
-							conv.lastMessage?.e2ee
-								? { ...conv, lastMessage: await openMessage(conv.lastMessage as Message) }
-								: conv,
-						),
-					);
+				const data = await fetchConversations();
 				if (!cached.length) setConversations(data);
-				const opened = await openPreviews();
+				const opened = await openPreviews(data);
 				setConversations(opened);
 				void setCachedChats(opened).catch(() => undefined);
 			} catch (error) {

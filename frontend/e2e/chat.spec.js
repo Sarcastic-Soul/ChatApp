@@ -38,7 +38,7 @@ test("two people chat in real time", async ({ browser }) => {
     await alice.getByRole("textbox", { name: "Message", exact: true }).fill("Hi Bob, it's Alice");
     const firstSend = alice.waitForRequest(isSend);
     await alice.getByRole("button", { name: "Send" }).click();
-    await expect(alice.getByText("Hi Bob, it's Alice")).toBeVisible();
+    await expect(alice.getByRole("main").getByText("Hi Bob, it's Alice")).toBeVisible();
 
     // Both have keys, so the server only ever sees ciphertext
     const sent = (await firstSend).postDataJSON();
@@ -47,30 +47,36 @@ test("two people chat in real time", async ({ browser }) => {
     expect(JSON.stringify(sent)).not.toContain("Hi Bob");
     await expect(alice.getByLabel("End-to-end encrypted")).toBeVisible();
 
-    // Bob opens the chat after a reload and sees the message
+    // Bob's chat list shows the decrypted message and that it is unread
     await bob.reload();
-    await bob.getByRole("navigation", { name: "Chats" }).getByText("Alice Test").click();
-    await expect(bob.getByText("Hi Bob, it's Alice")).toBeVisible();
+    const bobChats = bob.getByRole("navigation", { name: "Chats" });
+    await expect(bobChats.getByText("Hi Bob, it's Alice")).toBeVisible();
+    await expect(bobChats.getByLabel("1 unread")).toBeVisible();
+
+    // He opens the chat and sees the message; the unread count clears
+    await bobChats.getByText("Alice Test").click();
+    await expect(bobChats.getByLabel("1 unread")).toHaveCount(0);
+    await expect(bob.getByRole("main").getByText("Hi Bob, it's Alice")).toBeVisible();
 
     // From here on, messages arrive over the socket with no reload
     await bob.getByRole("textbox", { name: "Message", exact: true }).fill("Hey Alice!");
     await bob.getByRole("button", { name: "Send" }).click();
-    await expect(alice.getByText("Hey Alice!")).toBeVisible();
+    await expect(alice.getByRole("main").getByText("Hey Alice!")).toBeVisible();
 
     await alice.getByRole("textbox", { name: "Message", exact: true }).fill("Profanity check: shit happens");
     await alice.getByRole("button", { name: "Send" }).click();
-    await expect(bob.getByText("Profanity check: **** happens")).toBeVisible();
+    await expect(bob.getByRole("main").getByText("Profanity check: **** happens")).toBeVisible();
 
     // A message written offline waits in the outbox and goes out once the
     // connection is back, exactly once
     await aliceContext.setOffline(true);
     await alice.getByRole("textbox", { name: "Message", exact: true }).fill("Written on the train");
     await alice.getByRole("button", { name: "Send" }).click();
-    await expect(alice.getByText("Written on the train")).toBeVisible();
+    await expect(alice.getByRole("main").getByText("Written on the train")).toBeVisible();
     await expect(alice.getByLabel("Sending")).toBeVisible();
 
     await aliceContext.setOffline(false);
-    await expect(bob.getByText("Written on the train")).toHaveCount(1);
+    await expect(bob.getByRole("main").getByText("Written on the train")).toHaveCount(1);
     await expect(alice.getByLabel("Sending")).toHaveCount(0);
 
     // On a new browser Bob unlocks his key with the passphrase and can
@@ -82,12 +88,12 @@ test("two people chat in real time", async ({ browser }) => {
     await bobLaptop.getByRole("button", { name: "Log in" }).click();
     await bobLaptop.getByRole("textbox", { name: "Passphrase", exact: true }).fill("not the passphrase");
     await bobLaptop.getByRole("button", { name: "Unlock" }).click();
-    await expect(bobLaptop.getByText("That passphrase didn't work.")).toBeVisible();
+    await expect(bobLaptop.getByRole("main").getByText("That passphrase didn't work.")).toBeVisible();
     await bobLaptop.getByRole("textbox", { name: "Passphrase", exact: true }).fill(PASSPHRASE);
     await bobLaptop.getByRole("button", { name: "Unlock" }).click();
     await bobLaptop.getByRole("navigation", { name: "Chats" }).getByText("Alice Test").click();
-    await expect(bobLaptop.getByText("Hi Bob, it's Alice")).toBeVisible();
-    await expect(bobLaptop.getByText("Profanity check: **** happens")).toBeVisible();
+    await expect(bobLaptop.getByRole("main").getByText("Hi Bob, it's Alice")).toBeVisible();
+    await expect(bobLaptop.getByRole("main").getByText("Profanity check: **** happens")).toBeVisible();
 
     await aliceContext.close();
     await bobContext.close();
