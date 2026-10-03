@@ -231,7 +231,7 @@ const seedDatabase = async () => {
                     from: alice,
                     ago: DAY + 4 * HOUR - 6 * MINUTE,
                     text: "That's catchy! Keep going.",
-                    reactions: [[bob, "🎉"]],
+                    reactions: [[bob, "👍"]],
                 },
                 { from: bob, ago: DAY + 2 * HOUR, text: "Missed voice call", call: true },
                 { from: alice, ago: DAY + HOUR, text: "Sorry, was in a meeting. Calling you back." },
@@ -270,7 +270,7 @@ const seedDatabase = async () => {
                     from: alice,
                     ago: 3 * DAY + 2 * HOUR - 3 * MINUTE,
                     text: "Yes! I switched to the rust accent color too.",
-                    reactions: [[emma, "😎"]],
+                    reactions: [[emma, "👍"]],
                 },
                 {
                     key: "desk",
@@ -356,7 +356,7 @@ const seedDatabase = async () => {
                     from: alice,
                     ago: 6 * DAY - 20 * MINUTE,
                     text: "Welcome, Grace! I'll add you to the group chat.",
-                    reactions: [[grace, "🎉"]],
+                    reactions: [[grace, "👍"]],
                 },
             ],
         });
@@ -381,7 +381,7 @@ const seedDatabase = async () => {
                     from: bob,
                     ago: 7 * DAY - 4 * MINUTE,
                     text: "Thanks Alice! Now I can add or remove people too.",
-                    reactions: [[alice, "🎉"]],
+                    reactions: [[alice, "👍"]],
                 },
                 {
                     key: "meeting",
@@ -433,7 +433,7 @@ const seedDatabase = async () => {
                     text: "The search screen is ready for review.",
                     image: photo("laptop.jpg"),
                     reactions: [
-                        [alice, "🎉"],
+                        [alice, "👍"],
                         [bob, "❤️"],
                     ],
                 },
@@ -509,7 +509,7 @@ const seedDatabase = async () => {
                     from: henry,
                     ago: 8 * HOUR,
                     text: "Weather looks clear for Saturday.",
-                    reactions: [[bob, "🎉"]],
+                    reactions: [[bob, "👍"]],
                 },
             ],
         });
