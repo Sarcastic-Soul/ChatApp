@@ -19,6 +19,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Sarcastic-Soul/ChatApp/blob/main/docs/demo.mp4">Demo video</a> ·
   <a href="#try-it">Try it</a> ·
   <a href="#features">Features</a> ·
   <a href="#architecture">Architecture</a> ·
@@ -28,6 +29,13 @@
   <a href="#testing">Testing</a> ·
   <a href="https://chatapp-e2e.vercel.app/docs/">API reference</a> ·
   <a href="docs/deployment.md">Deployment</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Sarcastic-Soul/ChatApp/blob/main/docs/demo.mp4">
+    <img alt="Watch the 2.5 minute demo video" src="./screenshots/demo-poster.jpg">
+  </a><br>
+  <sub>Demo video (2.5 minutes): every feature, then the stack and architecture. Click to play.</sub>
 </p>
 
 <p align="center">
