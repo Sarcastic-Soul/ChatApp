@@ -659,6 +659,31 @@
                         "type": "string",
                         "maxLength": 32,
                         "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+                      },
+                      "media": {
+                        "type": "object",
+                        "properties": {
+                          "epoch": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "iv": {
+                            "type": "string",
+                            "maxLength": 32,
+                            "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+                          },
+                          "data": {
+                            "type": "string",
+                            "maxLength": 60000,
+                            "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+                          }
+                        },
+                        "required": [
+                          "epoch",
+                          "iv",
+                          "data"
+                        ]
                       }
                     },
                     "required": [
@@ -804,6 +829,31 @@
                         "type": "string",
                         "maxLength": 32,
                         "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+                      },
+                      "media": {
+                        "type": "object",
+                        "properties": {
+                          "epoch": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "iv": {
+                            "type": "string",
+                            "maxLength": 32,
+                            "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+                          },
+                          "data": {
+                            "type": "string",
+                            "maxLength": 60000,
+                            "pattern": "^[A-Za-z0-9+/]+={0,2}$"
+                          }
+                        },
+                        "required": [
+                          "epoch",
+                          "iv",
+                          "data"
+                        ]
                       }
                     },
                     "required": [
@@ -1046,6 +1096,69 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "The input failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages/timer/{id}": {
+      "put": {
+        "tags": [
+          "Messages"
+        ],
+        "summary": "Set the disappearing messages timer",
+        "description": "0 turns it off. Only messages sent after the change are affected. In a group only admins can change it.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f\\d]{24}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "seconds": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "seconds"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Success"

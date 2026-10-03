@@ -81,6 +81,14 @@ const routes: Route[] = [
     { method: "post", path: "/messages/react/{messageId}", tag: "Messages", summary: "Add, change or remove a reaction", schema: schemas.reactionSchema },
     { method: "post", path: "/messages/read/{id}", tag: "Messages", summary: "Mark a chat as read", schema: schemas.conversationIdSchema },
     {
+        method: "put",
+        path: "/messages/timer/{id}",
+        tag: "Messages",
+        summary: "Set the disappearing messages timer",
+        description: "0 turns it off. Only messages sent after the change are affected. In a group only admins can change it.",
+        schema: schemas.disappearTimerSchema,
+    },
+    {
         method: "post",
         path: "/messages/magic-reply",
         tag: "Messages",

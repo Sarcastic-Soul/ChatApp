@@ -2,7 +2,7 @@
 
 <p align="center">
   A full-stack real-time chat app with group chats, voice notes, and peer-to-peer voice and video calls.<br>
-  Messages are end-to-end encrypted in the browser, so the server stores text it can't read.
+  Messages, photos, videos and voice notes are end-to-end encrypted in the browser, so the server stores data it can't read.
 </p>
 
 <p align="center">
@@ -68,10 +68,13 @@ Good to know:
 
 - One-on-one and group chats, with typing indicators, read receipts and online status
 - Replies, edits, delete for everyone, reactions and forwarding
-- Images, video and voice notes, uploaded straight from the browser to Cloudinary
+- Images, video and voice notes, uploaded straight from the browser to Cloudinary; large photos are scaled down first
+- **Chat list** shows each chat's newest message and how many are unread
+- **Disappearing messages:** set a chat to delete new messages after 1 hour, 1 day or 7 days
 - **Search** every chat's messages from the sidebar; picking a result jumps to that message
 - **Offline sending:** messages written offline wait in an outbox and go out once the server is reachable, never twice, in the same order on every device
 - **Fast opening:** chats open from an IndexedDB cache, then refresh from the server (75% faster on 3G, see [Cache benchmark](docs/testing.md#cache-benchmark))
+- **Opens offline:** a service worker keeps the app's files, so saved chats open with no network
 - **Several servers:** can run on many servers at once, joined through Redis (see [Load test](docs/testing.md#load-test))
 
 ### Calls and notifications
@@ -94,6 +97,8 @@ Good to know:
 ### Privacy and safety
 
 - **End-to-end encryption** for one-on-one chats and groups (ECDH P-256 and AES-GCM in the Web Crypto API), with a lock in the chat header when it's on
+- **Encrypted attachments:** in those chats photos, videos and voice notes are encrypted before upload, each with its own key, so the media host can't open them
+- **Safety numbers:** compare a number with the other person to check nobody swapped their key, and get a warning in the chat if a key changes later
 - **Passphrase backup** of your key, so a new browser can read your history; the server never sees the passphrase
 - **AES-256 encryption at rest** for everything else: chats where someone has no key yet, call logs and group notices
 - **Profanity is masked** (`****`) before a message is sent, in the browser for encrypted chats

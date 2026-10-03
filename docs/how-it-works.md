@@ -48,6 +48,14 @@
 | A device missed messages while offline | After a reconnect the open chat asks for `?after=<newest number it has>` and gets only what it missed. |
 | Read state must be exact | Read receipts carry the number read up to. The sender's messages show as read only up to that number. |
 | Chats older than sequence numbers | They are numbered in send order the first time they're opened. |
+| The chat list needs previews and unread counts | Each chat stores its newest message, and the list counts messages numbered after the one each person last read. Encrypted previews are decrypted in the browser. |
+| The app should open with no network | The service worker keeps the app's files, and the chat list and messages come from the IndexedDB cache. |
+
+**Disappearing messages**
+
+- A chat can be set to delete new messages after 1 hour, 1 day or 7 days (`PUT /api/messages/timer/:id`). In a group only admins can change it.
+- Each message sent while the timer is on gets an `expiresAt` time. A MongoDB TTL index deletes it then, and browsers drop it from the screen and the cache.
+- Messages sent before the timer was set stay, and so does the notice saying it changed.
 
 ## Several servers
 
@@ -96,6 +104,19 @@ See [Load test](testing.md#load-test) for numbers.
 - A unique index on chat and epoch means only one of two people racing to make it wins. The other gets a `409`, seals the message again with the winner's key and sends once more.
 - New members can't read messages from before they joined.
 
+**Attachments**
+
+- In an end-to-end chat the browser makes a new AES-GCM-256 key for each file, encrypts the file and uploads the ciphertext.
+- The file's key, type, size and a tiny blurred preview go inside the encrypted message, sealed with the chat key.
+- The server refuses an attachment without that sealed part in an encrypted chat, so nothing readable can be uploaded there by mistake.
+- Forwarding to another encrypted chat reuses the same upload and only shares the key again.
+- Photos load blurred first, and a video is only downloaded when someone presses play.
+
+**Checking keys**
+
+- Each pair of people has a safety number: a SHA-512 hash of both user IDs and public keys, shown as groups of five digits. If both see the same number, nobody swapped a key.
+- The browser remembers the key it first saw for each contact. If the server later hands out a different one, the chat shows a warning until the number is checked again.
+
 **In the browser**
 
 - Messages are decrypted wherever they come in: history, the socket, catch-up and the outbox.
@@ -105,9 +126,9 @@ See [Load test](testing.md#load-test) for numbers.
 
 | Gap | Detail |
 | --- | --- |
-| Media | Images, videos and voice notes sit on Cloudinary unencrypted |
+| Media metadata | The server sees that a message has a photo, video or voice note, and Cloudinary sees the encrypted file's size |
 | Metadata | Reactions, who talks to whom and when, and edit and read states are visible to the server |
-| No safety numbers yet | A server that handed out a fake public key could read new messages; people have to trust the server's key list |
+| Unchecked keys | Safety numbers only protect people who compare them |
 | Weak passphrases | Can be guessed offline by someone with the database, since PBKDF2 only slows that down |
 | Push notifications | Say "New message" instead of the text |
 | Magic reply | Sends recent messages to Groq as plain text, after asking |
@@ -166,3 +187,6 @@ Text encrypted at rest can't go in a MongoDB text index, so each message also ge
 - The backend signs a Cloudinary upload.
 - The browser uploads the file straight to Cloudinary.
 - Files never pass through the API server.
+- Photos larger than 1600 pixels are scaled down in the browser first.
+- In end-to-end chats the file is encrypted before upload (see [End-to-end encryption](#end-to-end-encryption)), up to 10 MB.
+- Photos and avatars the server can read are requested at the size shown, in the best format the browser takes.
