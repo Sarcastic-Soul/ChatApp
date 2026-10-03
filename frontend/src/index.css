@@ -122,6 +122,26 @@ p {
     text-align: center;
 }
 
+/* The safety number two people compare to verify each other's keys */
+.safety-number {
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    justify-content: center;
+    gap: 10px 18px;
+    padding: 18px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--mantine-radius-md);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 1.05rem;
+    letter-spacing: 0.04em;
+}
+
+/* A contact's key is not the one this browser remembers */
+.key-warning {
+    border-bottom: 1px solid var(--line);
+    background-color: var(--mantine-color-yellow-light);
+}
+
 /* Matching words in message search results */
 .search-hit {
     background: var(--mantine-primary-color-light);

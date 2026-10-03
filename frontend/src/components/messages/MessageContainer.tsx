@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import useConversation from "../../zustand/useConversation";
 import MessageInput from "./MessageInput";
@@ -10,6 +10,8 @@ import {
     ArrowLeftIcon,
     MagnifyingGlassIcon,
     LockSimpleIcon,
+    SealCheckIcon,
+    WarningIcon,
     TimerIcon,
     CheckIcon,
 } from "@phosphor-icons/react";
@@ -17,7 +19,9 @@ import { notifications } from "@mantine/notifications";
 import { TIMER_CHOICES, timerLabel } from "../../utils/expiry";
 import { errorMessage } from "../../utils/errorMessage";
 import type { ApiError } from "../../types";
-import { isEndToEnd } from "../../utils/e2ee/chats";
+import useChatTrust from "../../hooks/useChatTrust";
+import { rememberPeer } from "../../utils/e2ee/trust";
+import VerifyModal from "./VerifyModal";
 import { useAuthContext } from "../../context/AuthContext";
 import { useSocketContext } from "../../context/SocketContext";
 import { useCallContext } from "../../context/CallContext";
@@ -32,6 +36,7 @@ import {
     Tooltip,
     CloseButton,
     Menu,
+    Button,
 } from "@mantine/core";
 import Avatar from "../Avatar";
 import { useMediaQuery } from "@mantine/hooks";
@@ -46,20 +51,24 @@ const MessageContainer = () => {
     const [showSearch, setShowSearch] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [timerOpen, setTimerOpen] = useState(false);
-    const [endToEnd, setEndToEnd] = useState<{ id: string; on: boolean } | null>(null);
+    const [verifyOpen, setVerifyOpen] = useState(false);
 
-    const chatId = selectedConversation?._id;
-    useEffect(() => {
-        if (!chatId) return;
-        let stale = false;
-        isEndToEnd(chatId)
-            .then((on) => !stale && setEndToEnd({ id: chatId, on }))
-            .catch(() => {});
-        return () => {
-            stale = true;
-        };
-    }, [chatId]);
-    const showLock = endToEnd !== null && endToEnd.id === chatId && endToEnd.on;
+    const trust = useChatTrust(selectedConversation?._id);
+    const showLock = trust.endToEnd;
+    const changedPeers = trust.peers.filter((peer) => peer.changed);
+    const allVerified = trust.peers.length > 0 && trust.peers.every((peer) => peer.verified);
+
+    const nameOf = (userId: string) =>
+        (selectedConversation?.isGroupChat
+            ? selectedConversation.participants?.find((p) => p._id === userId)?.fullName
+            : selectedConversation?.fullName) || "This person";
+
+    // Keeps the new keys without comparing numbers
+    const acceptChangedKeys = async () => {
+        if (!authUser) return;
+        await Promise.all(changedPeers.map((peer) => rememberPeer(authUser._id, peer, false)));
+        trust.reload();
+    };
 
     const isOnline =
         selectedConversation &&
@@ -155,21 +164,9 @@ const MessageContainer = () => {
                             >
                                 <Avatar src={selectedConversation.profilePic} alt="" radius="xl" size={38} name={displayName} />
                                 <div style={{ minWidth: 0 }}>
-                                    <Group gap={4} wrap="nowrap">
-                                        <Text component="h1" fw={600} size="sm" m={0} truncate>
-                                            {displayName}
-                                        </Text>
-                                        {showLock && (
-                                            <Tooltip label="End-to-end encrypted">
-                                                <LockSimpleIcon
-                                                    size={13}
-                                                    weight="bold"
-                                                    aria-label="End-to-end encrypted"
-                                                    style={{ flexShrink: 0, color: "var(--muted)" }}
-                                                />
-                                            </Tooltip>
-                                        )}
-                                    </Group>
+                                    <Text component="h1" fw={600} size="sm" m={0} truncate>
+                                        {displayName}
+                                    </Text>
                                     {statusLine && (
                                         <Text
                                             size="xs"
@@ -180,6 +177,30 @@ const MessageContainer = () => {
                                     )}
                                 </div>
                             </UnstyledButton>
+                            {showLock && (
+                                <Tooltip
+                                    label={
+                                        allVerified
+                                            ? "End-to-end encrypted and verified"
+                                            : "End-to-end encrypted. Open to verify."
+                                    }
+                                >
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        size="md"
+                                        onClick={() => setVerifyOpen(true)}
+                                        aria-label={allVerified ? "End-to-end encrypted, verified" : "End-to-end encrypted"}
+                                        style={{ flexShrink: 0 }}
+                                    >
+                                        {allVerified ? (
+                                            <SealCheckIcon size={16} weight="fill" style={{ color: "var(--accent-text)" }} />
+                                        ) : (
+                                            <LockSimpleIcon size={15} weight="bold" style={{ color: "var(--muted)" }} />
+                                        )}
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
                         </Group>
 
                         <Group gap={4} wrap="nowrap">
@@ -262,6 +283,30 @@ const MessageContainer = () => {
                         </Group>
                     </Group>
 
+                    {changedPeers.length > 0 && (
+                        <Group
+                            role="alert"
+                            gap="sm"
+                            px="md"
+                            py={8}
+                            wrap="nowrap"
+                            className="key-warning"
+                        >
+                            <WarningIcon size={18} style={{ flexShrink: 0 }} />
+                            <Text size="sm" style={{ flex: 1 }}>
+                                {changedPeers.map((peer) => nameOf(peer._id)).join(", ")}
+                                {changedPeers.length === 1 ? "'s security key changed." : " have new security keys."}{" "}
+                                Compare safety numbers before sharing anything private.
+                            </Text>
+                            <Button size="compact-sm" variant="default" onClick={() => setVerifyOpen(true)}>
+                                Verify
+                            </Button>
+                            <Button size="compact-sm" variant="subtle" color="gray" onClick={acceptChangedKeys}>
+                                Dismiss
+                            </Button>
+                        </Group>
+                    )}
+
                     {showSearch && (
                         <Box px="md" py={8} style={{ borderBottom: "1px solid var(--line)" }}>
                             <TextInput
@@ -283,6 +328,14 @@ const MessageContainer = () => {
                 </>
             )}
             <ForwardModal />
+            <VerifyModal
+                opened={verifyOpen}
+                onClose={() => setVerifyOpen(false)}
+                me={trust.me}
+                peers={trust.peers}
+                nameOf={nameOf}
+                onChange={trust.reload}
+            />
         </Flex>
     );
 };

@@ -65,6 +65,12 @@ const chatInfo = (id: string, fresh = false) => {
 // Whether new messages to this chat are end-to-end encrypted
 export const isEndToEnd = async (id: string) => (await chatInfo(id)).ready;
 
+// The members of a chat that have a key, for comparing safety numbers
+export const chatKeyHolders = async (id: string) =>
+    (await chatInfo(id)).members.flatMap((member) =>
+        member.publicKey ? [{ _id: member._id, publicKey: member.publicKey }] : [],
+    );
+
 // After a 409 or a membership change, the next send asks again
 export const forgetChatInfo = (id?: string) => {
     if (id) infoCache.delete(id);
