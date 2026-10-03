@@ -1,6 +1,6 @@
 import { useEffect } from "react";
-import { useAuthContext } from "../context/AuthContext";
-import { useSocketContext } from "../context/SocketContext";
+import { useAuthContext } from "../context/useAuthContext";
+import { useSocketContext } from "../context/useSocketContext";
 import useConversation from "../zustand/useConversation";
 import { flushOutbox, stopOutboxRetries } from "../utils/outbox";
 import { openMessages } from "../utils/e2ee/chats";

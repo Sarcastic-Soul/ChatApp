@@ -17,7 +17,7 @@ import {
     MicrophoneIcon,
     MicrophoneSlashIcon,
 } from "@phosphor-icons/react";
-import { useCallContext } from "../../context/CallContext";
+import { useCallContext } from "../../context/useCallContext";
 
 const CallModal = () => {
     const {

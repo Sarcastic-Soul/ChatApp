@@ -20,7 +20,6 @@ import type { ApiError, PublicUser } from "../../types";
 const CreateGroupModal = ({ onClose }: { onClose: () => void }) => {
     const [groupName, setGroupName] = useState("");
     const [allUsers, setAllUsers] = useState<PublicUser[]>([]);
-    const [filteredUsers, setFilteredUsers] = useState<PublicUser[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
@@ -35,7 +34,6 @@ const CreateGroupModal = ({ onClose }: { onClose: () => void }) => {
                 const data = (await res.json()) as PublicUser[] & ApiError;
                 if (data.error) throw new Error(data.error);
                 setAllUsers(data);
-                setFilteredUsers(data);
             } catch (error) {
                 notifications.show({
                     message: "Failed to fetch users",
@@ -48,12 +46,9 @@ const CreateGroupModal = ({ onClose }: { onClose: () => void }) => {
         fetchUsers();
     }, []);
 
-    useEffect(() => {
-        const results = allUsers.filter((user) =>
-            user.fullName.toLowerCase().includes(searchTerm.toLowerCase()),
-        );
-        setFilteredUsers(results);
-    }, [searchTerm, allUsers]);
+    const filteredUsers = allUsers.filter((user) =>
+        user.fullName.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
 
     const handleCreateGroup = async () => {
         if (!groupName.trim() || selectedUsers.length === 0) {

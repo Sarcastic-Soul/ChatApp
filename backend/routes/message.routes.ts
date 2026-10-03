@@ -1,14 +1,8 @@
 import express from "express";
-import {
-    getMessages,
-    sendMessage,
-    addReaction,
-    markMessagesAsRead,
-    generateMagicReply,
-    editMessage,
-    deleteMessage,
-    searchMessages,
-} from "../controllers/message.controller.ts";
+import { getMessages, sendMessage, markMessagesAsRead } from "../controllers/message.controller.ts";
+import { addReaction, editMessage, deleteMessage } from "../controllers/messageChange.controller.ts";
+import { generateMagicReply } from "../controllers/magicReply.controller.ts";
+import { searchMessages } from "../controllers/search.controller.ts";
 import { setDisappearTimer } from "../controllers/timer.controller.ts";
 import protectRoute from "../middleware/protectRoute.ts";
 import { messageRateLimiter } from "../middleware/rateLimiter.ts";

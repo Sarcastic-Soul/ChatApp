@@ -10,7 +10,8 @@ export default defineConfig({
     testDir: "./e2e",
     // Benchmarks only run when asked for (pnpm run bench:cache)
     testMatch: process.env.BENCH ? "bench/*.bench.js" : "*.spec.js",
-    timeout: 60_000,
+    // Sign-up derives a key from a passphrase, which is slow on purpose
+    timeout: 120_000,
     expect: { timeout: 10_000 },
     fullyParallel: false,
     retries: process.env.CI ? 1 : 0,
@@ -19,6 +20,10 @@ export default defineConfig({
         baseURL: `http://${HOST}:${APP_PORT}`,
         trace: "retain-on-failure",
         ...devices["Desktop Chrome"],
+        // Calls get a made-up camera and microphone, with no permission prompt
+        launchOptions: {
+            args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
+        },
     },
     webServer: [
         {

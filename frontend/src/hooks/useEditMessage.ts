@@ -7,7 +7,7 @@ import type { ApiError, Message } from "../types";
 
 const useEditMessage = () => {
     const [loading, setLoading] = useState(false);
-    const { updateMessage } = useConversation();
+    const updateMessage = useConversation((state) => state.updateMessage);
 
     const editMessage = async (original: Message, newText: string) => {
         setLoading(true);

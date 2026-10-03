@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, type ChangeEvent } from "react";
 import { useParams, useNavigate } from "react-router";
 import { notifications } from "@mantine/notifications";
-import { useAuthContext } from "../context/AuthContext";
+import { useAuthContext } from "../context/useAuthContext";
 import { errorMessage } from "../utils/errorMessage";
 import { uploadToCloudinary } from "../utils/upload";
 import type { ApiError, GroupDetails, PublicUser } from "../types";
@@ -47,7 +47,9 @@ const useGroupInfo = () => {
 
     useEffect(() => {
         if (groupId) {
-            fetchGroupDetails();
+            // Loads the group; state is set once the request comes back
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            void fetchGroupDetails();
         }
     }, [groupId, fetchGroupDetails]);
 

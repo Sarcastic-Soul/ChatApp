@@ -1,50 +1,21 @@
-import { useAuthContext } from "../../context/AuthContext";
+import { memo, useState } from "react";
+import { Text, Group, ActionIcon, Box, TextInput } from "@mantine/core";
+import { ArrowBendUpRightIcon, XIcon, CheckIcon, ChecksIcon, ClockIcon } from "@phosphor-icons/react";
+import { useAuthContext } from "../../context/useAuthContext";
 import { extractTime } from "../../utils/extractTime";
 import useConversation from "../../zustand/useConversation";
 import useEditMessage from "../../hooks/useEditMessage";
-import useDeleteMessage from "../../hooks/useDeleteMessage";
-import { memo, useState } from "react";
-import { notifications } from "@mantine/notifications";
-import {
-    Text,
-    Group,
-    ActionIcon,
-    Box,
-    Popover,
-    UnstyledButton,
-    TextInput,
-    Menu,
-    Button,
-    Tooltip,
-} from "@mantine/core";
+import useReactToMessage from "../../hooks/useReactToMessage";
 import Avatar from "../Avatar";
-import {
-    SmileyIcon,
-    ArrowBendUpLeftIcon,
-    ArrowBendUpRightIcon,
-    PencilSimpleIcon,
-    TrashIcon,
-    XIcon,
-    CheckIcon,
-    ChecksIcon,
-    ClockIcon,
-    VideoCameraIcon,
-    VideoCameraSlashIcon,
-    PhoneIcon,
-    PhoneSlashIcon,
-    InfoIcon,
-    DotsThreeIcon,
-    type Icon,
-} from "@phosphor-icons/react";
-import { errorMessage } from "../../utils/errorMessage";
+import MessageEvent from "./MessageEvent";
 import MessageMedia from "./MessageMedia";
+import MessageReactions from "./MessageReactions";
+import MessageTools from "./MessageTools";
 import { senderIdOf, senderProfileOf } from "../../utils/sender";
-import type { ApiError, AuthUser, Conversation, Message as MessageData, QuotedMessage, Reaction } from "../../types";
+import type { AuthUser, Conversation, Message as MessageData, QuotedMessage } from "../../types";
 
 // Text sealed with a key this browser doesn't have, e.g. from before a key reset
 const UNDECRYPTABLE = "Can't decrypt this message on this device";
-
-const availableReactions = ["👍", "❤️", "😂", "😮", "😢", "😡"];
 
 // Name to show for the sender of a quoted message
 const quotedSenderName = (
@@ -64,10 +35,11 @@ const quotedSenderName = (
     return selectedConversation?.fullName || "User";
 };
 
+// One row of the chat. Wrapped in memo and reading single values from the
+// store, so a new message or a typing notice doesn't draw every row again.
 const Message = ({ message }: { message: MessageData }) => {
     const { authUser } = useAuthContext();
-    const { selectedConversation, updateMessage, setReplyingToMessage, setForwardingMessage } =
-        useConversation();
+    const selectedConversation = useConversation((state) => state.selectedConversation);
 
     const senderId = senderIdOf(message.senderId);
     const fromMe = senderId === authUser?._id;
@@ -90,17 +62,10 @@ const Message = ({ message }: { message: MessageData }) => {
         if (!senderName) senderName = selectedConversation?.fullName || "Someone";
     }
 
-    const [showReactionPicker, setShowReactionPicker] = useState(false);
-    const [confirmDelete, setConfirmDelete] = useState(false);
-    const [isReacting, setIsReacting] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState("");
     const { editMessage, loading: editLoading } = useEditMessage();
-    const { deleteMessage, loading: deleteLoading } = useDeleteMessage();
-    const [animatingReaction, setAnimatingReaction] = useState<string | null>(null);
-
-    const hasUserReactedWith = (reactionEmoji: string) =>
-        message.reactions?.some((r) => r.userId === authUser?._id && r.reaction === reactionEmoji);
+    const { react, hasReacted, animating } = useReactToMessage(message);
 
     const handleEditSubmit = async () => {
         if (!editValue.trim() || editValue === message.message) {
@@ -111,180 +76,11 @@ const Message = ({ message }: { message: MessageData }) => {
         if (success) setIsEditing(false);
     };
 
-    const handleDelete = async () => {
-        await deleteMessage(message._id);
-        setConfirmDelete(false);
-    };
-
-    const handleReaction = async (reaction: string) => {
-        if (isReacting) return;
-        setIsReacting(true);
-        setAnimatingReaction(reaction);
-        setShowReactionPicker(false);
-
-        try {
-            const res = await fetch(`/api/messages/react/${message._id}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ reaction }),
-            });
-            const data = (await res.json()) as { reactions: Reaction[] } & ApiError;
-            if (data.error) throw new Error(data.error);
-
-            updateMessage({ ...message, reactions: data.reactions });
-            setTimeout(() => setAnimatingReaction(null), 400);
-        } catch (error) {
-            notifications.show({ message: errorMessage(error), color: "red" });
-            setAnimatingReaction(null);
-        } finally {
-            setIsReacting(false);
-        }
-    };
-
-    const reactionCounts =
-        message.reactions?.reduce<Record<string, number>>((acc, r) => {
-            acc[r.reaction] = (acc[r.reaction] || 0) + 1;
-            return acc;
-        }, {}) || {};
-
-    if (message.isSystem) {
-        return (
-            <Box my="md" ta="center">
-                <span className="event-line">
-                    <InfoIcon size={14} />
-                    {senderName} {message.message}
-                </span>
-            </Box>
-        );
-    }
-
-    if (message.isCall) {
-        const isMissed = message.message.includes("Missed");
-        const isVideo = /video/i.test(message.message);
-
-        let CallIcon: Icon;
-        if (isMissed && isVideo) CallIcon = VideoCameraSlashIcon;
-        else if (isMissed) CallIcon = PhoneSlashIcon;
-        else if (isVideo) CallIcon = VideoCameraIcon;
-        else CallIcon = PhoneIcon;
-
-        return (
-            <Box my="md" ta="center">
-                <span className="event-line" data-missed={isMissed}>
-                    <CallIcon size={15} />
-                    {message.message}
-                    <span className="tabular" style={{ opacity: 0.8 }}>
-                        · {formattedTime}
-                    </span>
-                </span>
-            </Box>
-        );
+    if (message.isSystem || message.isCall) {
+        return <MessageEvent message={message} senderName={senderName} />;
     }
 
     const canEdit = fromMe && !message.isDeleted && !message.undecryptable && !isEditing;
-
-    const tools = (
-        <Group gap={2} wrap="nowrap" className="message-tools">
-            <Tooltip label="Reply">
-                <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="md"
-                    onClick={() => setReplyingToMessage(message)}
-                    aria-label="Reply"
-                >
-                    <ArrowBendUpLeftIcon size={16} />
-                </ActionIcon>
-            </Tooltip>
-
-            <Popover opened={showReactionPicker} onChange={setShowReactionPicker} position="top" withArrow>
-                <Popover.Target>
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        size="md"
-                        onClick={() => setShowReactionPicker((o) => !o)}
-                        aria-label="React"
-                    >
-                        <SmileyIcon size={16} />
-                    </ActionIcon>
-                </Popover.Target>
-                <Popover.Dropdown p={4}>
-                    <Group gap={2}>
-                        {availableReactions.map((emoji) => (
-                            <ActionIcon
-                                key={emoji}
-                                variant={hasUserReactedWith(emoji) ? "light" : "subtle"}
-                                color={hasUserReactedWith(emoji) ? undefined : "gray"}
-                                onClick={() => handleReaction(emoji)}
-                                size="lg"
-                                aria-label={`React with ${emoji}`}
-                            >
-                                <Text size="lg">{emoji}</Text>
-                            </ActionIcon>
-                        ))}
-                    </Group>
-                </Popover.Dropdown>
-            </Popover>
-
-            <Popover opened={confirmDelete} onChange={setConfirmDelete} position="top" withArrow>
-                <Popover.Target>
-                    <span style={{ display: "inline-flex" }}>
-                        <Menu position={fromMe ? "bottom-end" : "bottom-start"} width={200}>
-                            <Menu.Target>
-                                <ActionIcon variant="subtle" color="gray" size="md" aria-label="More actions">
-                                    <DotsThreeIcon size={18} weight="bold" />
-                                </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                {!message.undecryptable && (
-                                    <Menu.Item
-                                        leftSection={<ArrowBendUpRightIcon size={16} />}
-                                        onClick={() => setForwardingMessage(message)}
-                                    >
-                                        Forward
-                                    </Menu.Item>
-                                )}
-                                {canEdit && (
-                                    <>
-                                        <Menu.Item
-                                            leftSection={<PencilSimpleIcon size={16} />}
-                                            onClick={() => {
-                                                setEditValue(message.message);
-                                                setIsEditing(true);
-                                            }}
-                                        >
-                                            Edit
-                                        </Menu.Item>
-                                        <Menu.Item
-                                            color="red"
-                                            leftSection={<TrashIcon size={16} />}
-                                            onClick={() => setConfirmDelete(true)}
-                                        >
-                                            Delete for everyone
-                                        </Menu.Item>
-                                    </>
-                                )}
-                            </Menu.Dropdown>
-                        </Menu>
-                    </span>
-                </Popover.Target>
-                <Popover.Dropdown p="sm" maw={240}>
-                    <Text size="sm" mb="sm">
-                        Delete this message for everyone?
-                    </Text>
-                    <Group gap="xs" justify="flex-end">
-                        <Button size="xs" variant="default" onClick={() => setConfirmDelete(false)}>
-                            Cancel
-                        </Button>
-                        <Button size="xs" color="red" loading={deleteLoading} onClick={handleDelete}>
-                            Delete
-                        </Button>
-                    </Group>
-                </Popover.Dropdown>
-            </Popover>
-        </Group>
-    );
 
     return (
         <Group
@@ -391,42 +187,28 @@ const Message = ({ message }: { message: MessageData }) => {
                         )}
                     </div>
 
-                    {!message.isDeleted && !isEditing && !message.pending && tools}
+                    {!message.isDeleted && !isEditing && !message.pending && (
+                        <MessageTools
+                            message={message}
+                            fromMe={fromMe}
+                            canEdit={canEdit}
+                            hasReacted={hasReacted}
+                            onReact={react}
+                            onEdit={() => {
+                                setEditValue(message.message);
+                                setIsEditing(true);
+                            }}
+                        />
+                    )}
                 </div>
 
-                {Object.keys(reactionCounts).length > 0 && (
-                    <Group gap={4} mt={-2} style={{ flexDirection: fromMe ? "row-reverse" : "row" }}>
-                        {Object.entries(reactionCounts).map(([reaction, count]) => (
-                            <UnstyledButton
-                                key={reaction}
-                                onClick={() => handleReaction(reaction)}
-                                className={animatingReaction === reaction ? "reaction-pop" : ""}
-                                aria-label={`${reaction} ${count}`}
-                                aria-pressed={hasUserReactedWith(reaction)}
-                                style={{
-                                    backgroundColor: hasUserReactedWith(reaction)
-                                        ? "var(--mantine-primary-color-light)"
-                                        : "var(--mantine-color-default)",
-                                    border: `1px solid ${
-                                        hasUserReactedWith(reaction)
-                                            ? "var(--mantine-primary-color-light-color)"
-                                            : "var(--line)"
-                                    }`,
-                                    borderRadius: 999,
-                                    padding: "1px 8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 4,
-                                    fontSize: 12,
-                                    fontWeight: 600,
-                                }}
-                            >
-                                <span>{reaction}</span>
-                                <span className="tabular">{count}</span>
-                            </UnstyledButton>
-                        ))}
-                    </Group>
-                )}
+                <MessageReactions
+                    message={message}
+                    fromMe={fromMe}
+                    animating={animating}
+                    hasReacted={hasReacted}
+                    onReact={react}
+                />
 
                 <Group gap={4} align="center" px={4}>
                     <Text size="xs" c="dimmed" className="tabular">

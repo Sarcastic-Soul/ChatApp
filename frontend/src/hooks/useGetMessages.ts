@@ -91,16 +91,18 @@ const useGetMessages = () => {
             setLoading(false);
             setInitialLoad(false);
         }
-    }, [conversationId, setMessages, isRealConversation]);
+    }, [conversationId, setMessages, isRealConversation, markAsRead]);
 
     useEffect(() => {
-        // This effect now correctly handles new chats by not calling getMessages for them.
+        // Loads the open chat. The store is outside React, and the loading
+        // flags have to change when the chat does.
         if (selectedConversation?._id) {
-            getMessages();
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            void getMessages();
         } else {
             setMessages([]);
         }
-    }, [selectedConversation?._id, getMessages]);
+    }, [selectedConversation?._id, getMessages, setMessages]);
 
     const loadOlderMessages = useCallback(async () => {
         if (loading || !isRealConversation || messages.length === 0) return;

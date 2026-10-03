@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAuthContext } from "../context/AuthContext";
+import { useAuthContext } from "../context/useAuthContext";
 import { chatKeyHolders, isEndToEnd } from "../utils/e2ee/chats";
 import { checkPeers, type KeyHolder, type PeerTrust } from "../utils/e2ee/trust";
 

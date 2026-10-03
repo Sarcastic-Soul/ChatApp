@@ -13,7 +13,7 @@
 
 <p align="center">
   <img alt="React 19" src="https://img.shields.io/badge/React-19-222?style=flat-square&logo=react">
-  <img alt="Node 22" src="https://img.shields.io/badge/Node-22-222?style=flat-square&logo=nodedotjs">
+  <img alt="Node 24" src="https://img.shields.io/badge/Node-24-222?style=flat-square&logo=nodedotjs">
   <img alt="MongoDB" src="https://img.shields.io/badge/MongoDB-Mongoose_9-222?style=flat-square&logo=mongodb">
   <img alt="Socket.io" src="https://img.shields.io/badge/Socket.io-4-222?style=flat-square&logo=socketdotio">
 </p>
@@ -136,7 +136,7 @@ The full write-up, with the delivery, scaling and encryption details, is in [doc
 | Area | Tools |
 | --- | --- |
 | Frontend | React 19, TypeScript, Vite 8, Mantine 9, React Router 8, Zustand 5, Motion, Phosphor Icons, Socket.io client, `idb` |
-| Backend | Node.js 22, TypeScript (run by Node directly), Express 5, Socket.io 4, Mongoose 9, zod 4, JWT, bcrypt, helmet, `express-rate-limit`, `leo-profanity` |
+| Backend | Node.js 24, TypeScript (run by Node directly), Express 5, Socket.io 4, Mongoose 9, zod 4, JWT, bcrypt, helmet, `express-rate-limit`, `leo-profanity` |
 | Services | MongoDB, Cloudinary, Groq, Google STUN, Cloudflare TURN |
 | Hosting | Vercel (frontend and `/api` proxy), Render (API and sockets), GitHub Actions (keep-alive ping) |
 | Tooling | Docker Compose, nginx, Redis, k6, pnpm, Vitest, supertest, mongodb-memory-server, ESLint 10 (flat config, typescript-eslint), GitHub Actions CI, D2 |

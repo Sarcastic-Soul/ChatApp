@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuthContext } from "../context/AuthContext";
+import { useAuthContext } from "../context/useAuthContext";
 import { notifications } from "@mantine/notifications";
 import { clearAllMessages } from "../utils/messageCacheDB";
 import { forgetIdentity } from "../utils/e2ee/identity";

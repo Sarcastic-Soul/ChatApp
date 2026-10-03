@@ -112,6 +112,19 @@ test("two people chat in real time", async ({ browser }) => {
     await expect(bob.getByRole("main").getByText("Photo from the trip")).toBeVisible();
     await expect(bob.getByRole("main").getByAltText("Shared image")).toHaveAttribute("src", /^blob:/);
 
+    // A video call: Bob answers, and each side gets the other's picture
+    await alice.getByRole("button", { name: "Video call" }).click();
+    await expect(alice.getByText("Calling…")).toBeVisible();
+    await expect(bob.getByText("Incoming video call")).toBeVisible();
+    await bob.getByRole("button", { name: "Answer" }).click();
+    for (const page of [alice, bob]) {
+        const remoteVideo = page.locator("video").first();
+        await expect.poll(() => remoteVideo.evaluate((video) => video.videoWidth)).toBeGreaterThan(0);
+    }
+    await alice.getByRole("button", { name: "End call" }).click();
+    await expect(alice.getByRole("button", { name: "End call" })).toHaveCount(0);
+    await expect(bob.getByRole("button", { name: "End call" })).toHaveCount(0);
+
     // A message written offline waits in the outbox and goes out once the
     // connection is back, exactly once
     await aliceContext.setOffline(true);
@@ -143,6 +156,53 @@ test("two people chat in real time", async ({ browser }) => {
     await aliceContext.close();
     await bobContext.close();
     await bobLaptop.context().close();
+});
+
+test("a group chat is encrypted for every member", async ({ browser }) => {
+    const people = [];
+    for (const name of ["Dana", "Eli", "Farah"]) {
+        const page = await (await browser.newContext()).newPage();
+        await signUp(page, `${name} Group`, `${name.toLowerCase()}_${stamp}`);
+        people.push(page);
+    }
+    const [dana, eli, farah] = people;
+    const groupName = `Trip ${stamp}`;
+
+    // Dana makes a group with the other two
+    await dana.getByRole("button", { name: "New chat or group" }).click();
+    await dana.getByRole("menuitem", { name: "New group" }).click();
+    const dialog = dana.getByRole("dialog");
+    await dialog.getByRole("textbox", { name: "Group name" }).fill(groupName);
+    await dialog.getByText("Eli Group").click();
+    await dialog.getByText("Farah Group").click();
+    await dialog.getByRole("button", { name: "Create group" }).click();
+
+    await dana.getByRole("navigation", { name: "Chats" }).getByText(groupName, { exact: true }).click();
+    await dana.getByRole("textbox", { name: "Message", exact: true }).fill("Tickets are booked");
+    const firstSend = dana.waitForRequest(isSend);
+    await dana.getByRole("button", { name: "Send" }).click();
+
+    // The chat key is wrapped once for each of the three members
+    const sent = (await firstSend).postDataJSON();
+    expect(sent.e2ee).toBeTruthy();
+    expect(sent.newKey.envelopes).toHaveLength(3);
+    expect(JSON.stringify(sent)).not.toContain("Tickets");
+
+    // Both of the others can read it
+    for (const page of [eli, farah]) {
+        await page.reload();
+        await page.getByRole("navigation", { name: "Chats" }).getByText(groupName, { exact: true }).click();
+        await expect(page.getByRole("main").getByText("Tickets are booked")).toBeVisible();
+    }
+
+    // A reply reaches everyone over the socket, with the sender's name
+    await eli.getByRole("textbox", { name: "Message", exact: true }).fill("See you at the station");
+    await eli.getByRole("button", { name: "Send" }).click();
+    for (const page of [dana, farah]) {
+        await expect(page.getByRole("main").getByText("See you at the station")).toBeVisible();
+    }
+
+    for (const page of people) await page.context().close();
 });
 
 test("a wrong password shows an error", async ({ page }) => {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import useConversation, { placeMessage } from "../zustand/useConversation";
 import { notifications } from "@mantine/notifications";
-import { useAuthContext } from "../context/AuthContext";
+import { useAuthContext } from "../context/useAuthContext";
 import { errorMessage } from "../utils/errorMessage";
 import { addToOutbox } from "../utils/messageCacheDB";
 import { flushOutbox } from "../utils/outbox";

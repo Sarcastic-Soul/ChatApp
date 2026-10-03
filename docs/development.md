@@ -33,7 +33,7 @@ docker compose -f docker-compose.yml -f docker-compose.scale.yml up --build -d
 
 **You need:**
 
-- Node.js 22
+- Node.js 24
 - pnpm (`npm i -g pnpm`)
 - A MongoDB database (Atlas, or local with `docker run -d -p 27017:27017 mongo:8.2`)
 

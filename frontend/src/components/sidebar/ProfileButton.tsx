@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { useAuthContext } from "../../context/AuthContext";
+import { useAuthContext } from "../../context/useAuthContext";
 import { UnstyledButton, Text } from "@mantine/core";
 import Avatar from "../Avatar";
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from
 import { Alert, Button, Loader, PasswordInput, Stack } from "@mantine/core";
 import { WarningIcon } from "@phosphor-icons/react";
 import AuthLayout from "./AuthLayout";
-import { useAuthContext } from "../context/AuthContext";
+import { useAuthContext } from "../context/useAuthContext";
 import useLogout from "../hooks/useLogout";
 import {
     AlreadySetUpError,
@@ -80,6 +80,8 @@ const EncryptionGate = ({ children }: { children: ReactNode }) => {
     }, [userId, go]);
 
     useEffect(() => {
+        // Loads the key state; every state change comes after a request
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         void check();
     }, [check]);
 

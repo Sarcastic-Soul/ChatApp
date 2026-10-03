@@ -2,8 +2,8 @@ import { useState, useRef, useEffect, type ChangeEvent, type FormEvent } from "r
 import useSendMessage, { type MediaAttachment } from "./useSendMessage";
 import { notifications } from "@mantine/notifications";
 import useConversation from "../zustand/useConversation";
-import { useAuthContext } from "../context/AuthContext";
-import { useSocketContext } from "../context/SocketContext";
+import { useAuthContext } from "../context/useAuthContext";
+import { useSocketContext } from "../context/useSocketContext";
 import { errorMessage } from "../utils/errorMessage";
 import { senderIdOf, senderProfileOf } from "../utils/sender";
 import { attachFile } from "../utils/e2ee/media";

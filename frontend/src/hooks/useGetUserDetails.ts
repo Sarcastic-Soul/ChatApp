@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import {useAuthContext} from '../context/AuthContext';
+import {useAuthContext} from '../context/useAuthContext';
 import { errorMessage } from '../utils/errorMessage';
 import type { ApiError, User } from '../types';
 

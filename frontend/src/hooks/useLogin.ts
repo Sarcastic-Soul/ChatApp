@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { notifications } from "@mantine/notifications";
-import { useAuthContext } from "../context/AuthContext";
+import { useAuthContext } from "../context/useAuthContext";
 import { errorMessage } from "../utils/errorMessage";
 import type { ApiError, AuthUser } from "../types";
 

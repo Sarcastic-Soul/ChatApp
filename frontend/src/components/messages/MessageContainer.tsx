@@ -22,9 +22,9 @@ import type { ApiError } from "../../types";
 import useChatTrust from "../../hooks/useChatTrust";
 import { rememberPeer } from "../../utils/e2ee/trust";
 import VerifyModal from "./VerifyModal";
-import { useAuthContext } from "../../context/AuthContext";
-import { useSocketContext } from "../../context/SocketContext";
-import { useCallContext } from "../../context/CallContext";
+import { useAuthContext } from "../../context/useAuthContext";
+import { useSocketContext } from "../../context/useSocketContext";
+import { useCallContext } from "../../context/useCallContext";
 import {
     Flex,
     Group,

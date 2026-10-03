@@ -1,6 +1,6 @@
 # Builds the app and serves it with nginx, which also forwards /api to the
 # backend the way vercel.json does in production
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 RUN npm install -g pnpm@12.4.2
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./

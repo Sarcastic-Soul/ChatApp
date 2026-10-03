@@ -1,6 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { useNavigate } from "react-router";
-import { useAuthContext } from "../context/AuthContext";
+import { useAuthContext } from "../context/useAuthContext";
 import useGetUserDetails from "../hooks/useGetUserDetails";
 import { notifications } from "@mantine/notifications";
 import { CameraIcon } from "@phosphor-icons/react";

@@ -38,7 +38,7 @@ web: Web server {
   rewrite: "/api/* proxy"
 }
 
-server: Backend · Node 22 {
+server: Backend · Node 24 {
   api: "Express 5 API\nhelmet · CORS · rate limit\nJWT cookie auth · zod checks"
   io: "Socket.io server\nsocket token auth · zod checks\nuser and group rooms"
   crypto: "AES-256 at rest for text\nthe server can read\nsearch hashes · profanity filter"

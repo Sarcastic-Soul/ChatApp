@@ -4,7 +4,7 @@ import { notifications } from "@mantine/notifications";
 import { ChatCircleTextIcon, PhoneIcon, VideoCameraIcon } from "@phosphor-icons/react";
 import { Center, Text, Stack, Button, Group, Skeleton } from "@mantine/core";
 import Avatar from "../components/Avatar";
-import { useCallContext } from "../context/CallContext";
+import { useCallContext } from "../context/useCallContext";
 import PageShell, { DetailList } from "../components/layout/PageShell";
 import useConversation from "../zustand/useConversation";
 import { errorMessage } from "../utils/errorMessage";

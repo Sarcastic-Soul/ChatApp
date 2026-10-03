@@ -1,12 +1,12 @@
 import { useEffect } from "react";
-import { useSocketContext } from "../context/SocketContext";
+import { useSocketContext } from "../context/useSocketContext";
 import useConversation from "../zustand/useConversation";
 import notificationSound from "../assets/sounds/notification.mp3";
 import useMarkMessagesAsRead from "./useMarkMessagesAsRead";
 import { reloadConversations } from "./useGetConversations";
 import { openMessage } from "../utils/e2ee/chats";
 import { senderIdOf } from "../utils/sender";
-import { useAuthContext } from "../context/AuthContext";
+import { useAuthContext } from "../context/useAuthContext";
 import type { Message, ReadReceipt, TypingEvent } from "../types";
 
 const useListenMessages = () => {
@@ -144,6 +144,7 @@ const useListenMessages = () => {
         addTypingUser,
         removeTypingUser,
         setTypingUsers,
+        markAsRead,
     ]);
 };
 

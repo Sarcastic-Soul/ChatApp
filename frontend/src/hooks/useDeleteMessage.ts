@@ -6,7 +6,7 @@ import type { ApiError, Message } from "../types";
 
 const useDeleteMessage = () => {
     const [loading, setLoading] = useState(false);
-    const { updateMessage } = useConversation();
+    const updateMessage = useConversation((state) => state.updateMessage);
 
     const deleteMessage = async (messageId: string) => {
         setLoading(true);

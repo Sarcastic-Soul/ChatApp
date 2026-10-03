@@ -1,9 +1,9 @@
-import { useSocketContext } from "../../context/SocketContext";
+import { useSocketContext } from "../../context/useSocketContext";
 import useConversation from "../../zustand/useConversation";
 import { UnstyledButton, Text, Indicator } from "@mantine/core";
 import Avatar from "../Avatar";
 import { extractListTime } from "../../utils/extractTime";
-import { useAuthContext } from "../../context/AuthContext";
+import { useAuthContext } from "../../context/useAuthContext";
 import { previewText, unreadLabel } from "../../utils/preview";
 import type { Conversation as ConversationData } from "../../types";
 

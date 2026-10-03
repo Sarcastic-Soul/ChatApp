@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { notifications } from "@mantine/notifications";
 import useGetUsers from "../../hooks/useGetUsers";
 import {
@@ -24,18 +24,13 @@ interface AddMemberModalProps {
 const AddMemberModal = ({ group, onClose, onMemberAdded }: AddMemberModalProps) => {
     const { users, loading } = useGetUsers();
     const [searchTerm, setSearchTerm] = useState("");
-    const [filteredUsers, setFilteredUsers] = useState<PublicUser[]>([]);
 
-    useEffect(() => {
-        const availableUsers = users.filter(
-            (user) => !group.participants.some((p) => p._id === user._id),
-        );
-
-        const results = availableUsers.filter((user) =>
+    // People who aren't in the group yet and match the search
+    const filteredUsers = users.filter(
+        (user) =>
+            !group.participants.some((p) => p._id === user._id) &&
             user.fullName.toLowerCase().includes(searchTerm.toLowerCase()),
-        );
-        setFilteredUsers(results);
-    }, [searchTerm, users, group.participants]);
+    );
 
     const handleAddMember = async (userIdToAdd: string) => {
         try {

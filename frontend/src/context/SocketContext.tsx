@@ -1,20 +1,8 @@
-import { createContext, useState, useEffect, useContext, type ReactNode } from "react";
-import { useAuthContext } from "./AuthContext";
+import { useState, useEffect, type ReactNode } from "react";
+import { useAuthContext } from "./useAuthContext";
+import { SocketContext } from "./useSocketContext";
 import io from "socket.io-client";
 import type { AppSocket } from "../types";
-
-interface SocketContextValue {
-	socket: AppSocket | null;
-	onlineUsers: string[];
-}
-
-const SocketContext = createContext<SocketContextValue | null>(null);
-
-export const useSocketContext = () => {
-	const context = useContext(SocketContext);
-	if (!context) throw new Error("useSocketContext must be used inside SocketContextProvider");
-	return context;
-};
 
 // The socket server runs on the backend's own domain, so it can't read the
 // auth cookie. Each (re)connect fetches a short-lived token instead.
@@ -41,6 +29,8 @@ export const SocketContextProvider = ({ children }: { children: ReactNode }) => 
 			auth: fetchSocketToken,
 		});
 
+		// The socket can only be made here, once there is a user to connect as
+		// eslint-disable-next-line react-hooks/set-state-in-effect
 		setSocket(newSocket);
 
 		newSocket.on("getOnlineUsers", (users) => {

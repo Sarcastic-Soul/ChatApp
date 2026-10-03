@@ -1,18 +1,6 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { AuthContext } from "./useAuthContext";
 import type { AuthUser } from "../types";
-
-interface AuthContextValue {
-    authUser: AuthUser | null;
-    setAuthUser: (user: AuthUser | null) => void;
-}
-
-export const AuthContext = createContext<AuthContextValue | null>(null);
-
-export const useAuthContext = () => {
-	const context = useContext(AuthContext);
-	if (!context) throw new Error("useAuthContext must be used inside AuthContextProvider");
-	return context;
-};
 
 export const AuthContextProvider = ({ children }: { children: ReactNode }) => {
     // Initialize state from localStorage to keep the user logged in across sessions

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Alert, Button, Group, Modal, Stack, Text, UnstyledButton } from "@mantine/core";
 import { ArrowLeftIcon, CaretRightIcon, SealCheckIcon, WarningIcon } from "@phosphor-icons/react";
-import { useAuthContext } from "../../context/AuthContext";
+import { useAuthContext } from "../../context/useAuthContext";
 import { rememberPeer, safetyNumber, type KeyHolder, type PeerTrust } from "../../utils/e2ee/trust";
 
 interface VerifyModalProps {

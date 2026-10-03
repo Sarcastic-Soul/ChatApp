@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Modal, Stack, Text, Button, TextInput, ScrollArea, UnstyledButton } from "@mantine/core";
 import Avatar from "../Avatar";
 import { MagnifyingGlassIcon, ArrowBendUpRightIcon } from "@phosphor-icons/react";
@@ -11,13 +11,14 @@ const ForwardModal = () => {
     const [search, setSearch] = useState("");
     const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
 
-    // Reset when modal opens/closes
-    useEffect(() => {
+    if (!forwardingMessage) return null;
+
+    // The next message to forward starts with an empty search and no pick
+    const close = () => {
         setSearch("");
         setSelectedConvId(null);
-    }, [forwardingMessage]);
-
-    if (!forwardingMessage) return null;
+        setForwardingMessage(null);
+    };
 
     const filteredConversations = conversations.filter((c) => {
         const name = c.isGroupChat ? c.groupName : c.fullName;
@@ -27,15 +28,13 @@ const ForwardModal = () => {
     const handleForward = async () => {
         if (!selectedConvId) return;
         const success = await forwardMessage(selectedConvId, forwardingMessage);
-        if (success) {
-            setForwardingMessage(null);
-        }
+        if (success) close();
     };
 
     return (
         <Modal
             opened={!!forwardingMessage}
-            onClose={() => setForwardingMessage(null)}
+            onClose={close}
             title="Forward message"
             centered
         >
