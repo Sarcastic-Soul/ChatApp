@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "backfill:search": "node --env-file-if-exists=.env scripts/backfill-search-index.ts",
+    "openapi": "node scripts/openapi.ts",
     "typecheck": "tsc -p . && tsc -p tests"
   },
   "dependencies": {

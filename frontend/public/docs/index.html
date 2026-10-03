@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171512" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="REST API reference for ChatApp: auth, messages, keys, groups, calls and push." />
+    <title>ChatApp API reference</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&family=Instrument+Serif&display=swap"
+        rel="stylesheet"
+    />
+    <style>
+        /* Same paper and ink colors as the app (frontend/src/index.css) */
+        body {
+            margin: 0;
+            background: #f5f1e8;
+        }
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #171512;
+            }
+        }
+        noscript {
+            display: block;
+            padding: 2rem;
+            font-family: Geist, ui-sans-serif, system-ui, sans-serif;
+            color: #1f1d19;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <noscript>
+        This page needs JavaScript. The raw file is at <a href="/openapi.json">/openapi.json</a>.
+    </noscript>
+
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference@1.72.4"></script>
+    <script>
+        const customCss = `
+            .scalar-app {
+                --scalar-font: "Geist", ui-sans-serif, system-ui, sans-serif;
+                --scalar-font-code: "Geist Mono", ui-monospace, monospace;
+                --scalar-radius: 6px;
+                --scalar-radius-lg: 10px;
+                --scalar-radius-xl: 14px;
+            }
+            .light-mode {
+                --scalar-background-1: #f5f1e8;
+                --scalar-background-2: #fbf9f4;
+                --scalar-background-3: #ede7db;
+                --scalar-background-accent: #e5ebe4;
+                --scalar-color-1: #1f1d19;
+                --scalar-color-2: #5f574b;
+                --scalar-color-3: #6b655a;
+                --scalar-color-accent: #1f6b4f;
+                --scalar-border-color: #ddd5c5;
+                --scalar-button-1: #1f6b4f;
+                --scalar-button-1-hover: #1f5d45;
+                --scalar-button-1-color: #fbf9f4;
+                --scalar-sidebar-background-1: #fbf9f4;
+                --scalar-sidebar-color-1: #1f1d19;
+                --scalar-sidebar-color-2: #5f574b;
+                --scalar-sidebar-border-color: #ddd5c5;
+                --scalar-sidebar-item-hover-background: #ede7db;
+                --scalar-sidebar-item-active-background: #e5ebe4;
+                --scalar-sidebar-color-active: #1f503d;
+                --scalar-sidebar-search-background: #f5f1e8;
+                --scalar-sidebar-search-border-color: #ddd5c5;
+            }
+            .dark-mode {
+                --scalar-background-1: #171512;
+                --scalar-background-2: #1e1b17;
+                --scalar-background-3: #2a2621;
+                --scalar-background-accent: #1f44344d;
+                --scalar-color-1: #ebe4d8;
+                --scalar-color-2: #cfc6b7;
+                --scalar-color-3: #a59c8d;
+                --scalar-color-accent: #7ba794;
+                --scalar-border-color: #38332c;
+                --scalar-button-1: #7ba794;
+                --scalar-button-1-hover: #a3c0b2;
+                --scalar-button-1-color: #171512;
+                --scalar-sidebar-background-1: #1e1b17;
+                --scalar-sidebar-color-1: #ebe4d8;
+                --scalar-sidebar-color-2: #cfc6b7;
+                --scalar-sidebar-border-color: #38332c;
+                --scalar-sidebar-item-hover-background: #2a2621;
+                --scalar-sidebar-item-active-background: #2a2621;
+                --scalar-sidebar-color-active: #a3c0b2;
+                --scalar-sidebar-search-background: #171512;
+                --scalar-sidebar-search-border-color: #38332c;
+            }
+            /* Display face for the big headings only, like the app */
+            .scalar-app .section-header,
+            .scalar-app .introduction-section h1,
+            .scalar-app .section h1,
+            .scalar-app .section-container > .section h2 {
+                font-family: "Instrument Serif", Georgia, serif;
+                font-weight: 400;
+                letter-spacing: 0;
+            }
+            .scalar-app .introduction-section h1 {
+                font-size: 3.25rem;
+                line-height: 1.05;
+            }
+        `;
+
+        Scalar.createApiReference("#app", {
+            url: "/openapi.json",
+            theme: "none",
+            withDefaultFonts: false,
+            customCss,
+            hideClientButton: true,
+            showToolbar: "never",
+            agent: { disabled: true },
+            mcp: { disabled: true },
+            defaultHttpClient: { targetKey: "js", clientKey: "fetch" },
+            metaData: { title: "ChatApp API reference" },
+        });
+    </script>
+</body>
+</html>

@@ -9,11 +9,23 @@ const vendorGroups = [
     { name: "socket", test: /node_modules[\\/](socket\.io-client|engine\.io-client|socket\.io-parser|engine\.io-parser)[\\/]/ },
 ];
 
+// The API reference is a plain page in public/docs. Vercel and nginx serve a
+// folder's index.html on their own; the dev server needs to be told.
+const docsPage = {
+    name: "docs-page",
+    configureServer(server) {
+        server.middlewares.use((req, _res, next) => {
+            if (req.url === "/docs" || req.url === "/docs/") req.url = "/docs/index.html";
+            next();
+        });
+    },
+};
+
 export default defineConfig(({ mode }) => {
     const env = { ...loadEnv(mode, process.cwd(), "VITE_"), ...process.env };
 
     return {
-        plugins: [react()],
+        plugins: [react(), docsPage],
         server: {
             port: 3000,
             // REST calls use same-origin /api paths. In dev they are proxied to

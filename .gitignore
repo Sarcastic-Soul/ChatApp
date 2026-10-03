@@ -50,3 +50,6 @@ coverage/
 # Playwright reports
 playwright-report/
 test-results/
+
+# impeccable design-check cache (config.json next to it is kept)
+frontend/.impeccable/hook.cache.json
